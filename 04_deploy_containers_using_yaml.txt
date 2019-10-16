@@ -1,0 +1,85 @@
+# Refernce - https://www.katacoda.com/courses/kubernetes/creating-kubernetes-yaml-definitions
+
+------------ deployment.yaml -------------
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: webapp1
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: webapp1
+    spec:
+      containers:
+      - name: webapp1
+        image: katacoda/docker-http-server:latest
+        ports:
+        - containerPort: 80
+
+----------------------------------------------------
+
+$ kubectl create -f deployment.yaml
+deployment.extensions/webapp1 created
+----------------------------------------------------
+
+$ kubectl get deployment
+NAME      READY   UP-TO-DATE   AVAILABLE   AGE
+webapp1   1/1     1            1           68s
+----------------------------------------------------
+
+$ kubectl describe deployment webapp1
+Name:                   webapp1
+Namespace:              default
+CreationTimestamp:      Wed, 16 Oct 2019 01:41:05 +0000
+Labels:                 app=webapp1
+Annotations:            deployment.kubernetes.io/revision: 1
+Selector:               app=webapp1
+Replicas:               1 desired | 1 updated | 1 total | 1 available | 0 unavailable
+StrategyType:           RollingUpdate
+MinReadySeconds:        0
+RollingUpdateStrategy:  1 max unavailable, 1 max surge
+Pod Template:
+  Labels:  app=webapp1
+  Containers:
+   webapp1:
+    Image:        katacoda/docker-http-server:latest
+    Port:         80/TCP
+    Host Port:    0/TCP
+    Environment:  <none>
+    Mounts:       <none>
+  Volumes:        <none>
+Conditions:
+  Type           Status  Reason
+  ----           ------  ------
+  Available      True    MinimumReplicasAvailable
+OldReplicaSets:  <none>
+NewReplicaSet:   webapp1-5f4c9c89 (1/1 replicas created)
+Events:
+  Type    Reason             Age   From                   Message
+  ----    ------             ----  ----                   -------
+  Normal  ScalingReplicaSet  64s   deployment-controller  Scaled up replica set webapp1-5f4c9c89 to 1
+  ----------------------------------------------------
+  
+  --------------- service.yaml -------------
+  apiVersion: v1
+kind: Service
+metadata:
+  name: webapp1-svc
+  labels:
+    app: webapp1
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    nodePort: 30080
+  selector:
+    app: webapp1
+
+----------------------------------------------------
+
+$ kubectl create -f service.yaml
+service/webapp1-svc created
+----------------------------------------------------
+
