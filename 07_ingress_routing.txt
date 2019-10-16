@@ -1,0 +1,247 @@
+# Reference: https://www.katacoda.com/courses/kubernetes/create-kubernetes-ingress-routes
+
+
+-------------------------------------
+master $ launch.sh
+Waiting for Kubernetes to start...
+Kubernetes started
+-------------------------------------
+master $ cat deployment.yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: webapp1
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: webapp1
+    spec:
+      containers:
+      - name: webapp1
+        image: katacoda/docker-http-server:latest
+        ports:
+        - containerPort: 80
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: webapp2
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: webapp2
+    spec:
+      containers:
+      - name: webapp2
+        image: katacoda/docker-http-server:latest
+        ports:
+        - containerPort: 80
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: webapp3
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: webapp3
+    spec:
+      containers:
+      - name: webapp3
+        image: katacoda/docker-http-server:latest
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp1-svc
+  labels:
+    app: webapp1
+spec:
+  ports:
+  - port: 80
+  selector:
+    app: webapp1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp2-svc
+  labels:
+    app: webapp2
+spec:
+  ports:
+  - port: 80
+  selector:
+    app: webapp2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp3-svc
+  labels:
+    app: webapp3
+spec:
+  ports:
+  - port: 80
+  selector:
+    app: webapp3
+-------------------------------------
+master $ kubectl apply -f deployment.yaml
+deployment.extensions/webapp1 created
+deployment.extensions/webapp2 created
+deployment.extensions/webapp3 created
+service/webapp1-svc created
+service/webapp2-svc created
+service/webapp3-svc created
+-------------------------------------
+master $ kubectl get deployment
+NAME      READY   UP-TO-DATE   AVAILABLE   AGE
+webapp1   0/1     1            0           2s
+webapp2   0/1     1            0           2s
+webapp3   0/1     1            0           2s
+-------------------------------------
+master $ cat ingress.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nginx-ingress
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: default-server-secret
+  namespace: nginx-ingress
+type: Opaque
+data:
+  tls.crt: LS0tL....aaa
+  tls.key: LS0tL....===
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nginx-ingress
+  namespace: nginx-ingress
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: nginx-config
+  namespace: nginx-ingress
+data:
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: nginx-ingress
+  namespace: nginx-ingress
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-ingress
+  template:
+    metadata:
+      labels:
+        app: nginx-ingress
+    spec:
+      serviceAccountName: nginx-ingress
+      containers:
+      - image: nginx/nginx-ingress:edge
+        imagePullPolicy: Always
+        name: nginx-ingress
+        ports:
+        - name: http
+          containerPort: 80
+        - name: https
+          containerPort: 443
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        args:
+          - -nginx-configmaps=$(POD_NAMESPACE)/nginx-config
+          - -default-server-tls-secret=$(POD_NAMESPACE)/default-server-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-ingress
+  namespace: nginx-ingress
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  - port: 443
+    targetPort: 443
+    protocol: TCP
+    name: https
+  selector:
+    app: nginx-ingress
+  externalIPs:
+    - 172.17.0.12
+-------------------------------------
+master $ kubectl create -f ingress.yaml
+namespace/nginx-ingress created
+secret/default-server-secret created
+serviceaccount/nginx-ingress created
+configmap/nginx-config created
+deployment.extensions/nginx-ingress created
+service/nginx-ingress created
+-------------------------------------
+master $ kubectl get deployment -n nginx-ingress
+NAME            READY   UP-TO-DATE   AVAILABLE   AGE
+nginx-ingress   0/1     1            0           3s
+-------------------------------------
+master $ cat ingress-rules.yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: webapp-ingress
+spec:
+  rules:
+  - host: my.kubernetes.example
+    http:
+      paths:
+      - path: /webapp1
+        backend:
+          serviceName: webapp1-svc
+          servicePort: 80
+      - path: /webapp2
+        backend:
+          serviceName: webapp2-svc
+          servicePort: 80
+      - backend:
+          serviceName: webapp3-svc
+          servicePort: 80
+-------------------------------------
+master $ kubectl create -f ingress-rules.yaml
+ingress.extensions/webapp-ingress created
+-------------------------------------
+master $ kubectl get ing
+NAME             HOSTS                   ADDRESS   PORTS   AGE
+webapp-ingress   my.kubernetes.example             80      5s
+-------------------------------------
+master $ curl -H "Host: my.kubernetes.example" 172.17.0.12/webapp1
+<h1>This request was processed by host: webapp1-6d7df9f8d-wwrv9</h1>
+-------------------------------------
+master $ curl -H "Host: my.kubernetes.example" 172.17.0.12/webapp2
+<h1>This request was processed by host: webapp2-6d48b8ff76-gxcb9</h1>
+-------------------------------------
+master $ curl -H "Host: my.kubernetes.example" 172.17.0.12
+<h1>This request was processed by host: webapp3-7df59dc67b-v8kch</h1>
