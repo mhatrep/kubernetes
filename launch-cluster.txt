@@ -1,3 +1,5 @@
+# Refer: https://www.katacoda.com/courses/kubernetes/launch-single-node-cluster
+
 $ minikube version
 minikube version: v1.3.0
 commit: 43969594266d77b555a207b0f3e9b3fa1dc92b1f
@@ -40,3 +42,33 @@ $ kubectl expose deployment first-deployment --port=80 --type=NodePort
 service/first-deployment exposed
 
 ----------------------------------------------------
+$ export PORT=$(kubectl get svc first-deployment -o go-template='{{range.spec.ports}}{{if .nodePort}}{{.nodePort}}{{"\n"}}{{end}}{{end}}')
+$ echo "Accessing host01:$PORT"
+Accessing host01:31468
+$ curl host01:$PORT
+<h1>This request was processed by host: first-deployment-8cbf74484-7rb49</h1>
+----------------------------------------------------
+
+$ minikube addons enable dashboard
+* dashboard was successfully enabled
+
+----------------------------------------------------
+$ kubectl apply -f /opt/kubernetes-dashboard.yaml
+service/kubernetes-dashboard-katacoda created
+----------------------------------------------------
+
+$ kubectl get pods -n kube-system  -w
+NAME                                    READY   STATUS              RESTARTS   AGE
+coredns-5c98db65d4-7n6ss                1/1     Running             1          4m3s
+coredns-5c98db65d4-tfb5c                1/1     Running             1          4m3s
+etcd-minikube                           1/1     Running             0          3m3s
+kube-addon-manager-minikube             1/1     Running             0          3m4s
+kube-apiserver-minikube                 1/1     Running             0          2m56s
+kube-controller-manager-minikube        1/1     Running             0          3m13s
+kube-proxy-ntrpn                        1/1     Running             0          4m3s
+kube-scheduler-minikube                 1/1     Running             0          2m53s
+kubernetes-dashboard-7b8ddcb5d6-d997k   0/1     ContainerCreating   0          2s
+storage-provisioner                     1/1     Running             0          4m1s
+kubernetes-dashboard-7b8ddcb5d6-d997k   1/1     Running             0          2s
+----------------------------------------------------
+
