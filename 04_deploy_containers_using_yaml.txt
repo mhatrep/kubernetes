@@ -82,4 +82,50 @@ spec:
 $ kubectl create -f service.yaml
 service/webapp1-svc created
 ----------------------------------------------------
+$ kubectl get svc
+NAME          TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+kubernetes    ClusterIP   10.96.0.1       <none>        443/TCP        2m52s
+webapp1-svc   NodePort    10.105.225.50   <none>        80:30080/TCP   31s
+----------------------------------------------------
+
+$ kubectl describe svc webapp1-svc
+Name:                     webapp1-svc
+Namespace:                default
+Labels:                   app=webapp1
+Annotations:              <none>
+Selector:                 app=webapp1
+Type:                     NodePort
+IP:                       10.105.225.50
+Port:                     <unset>  80/TCP
+TargetPort:               80/TCP
+NodePort:                 <unset>  30080/TCP
+Endpoints:                172.18.0.2:80
+Session Affinity:         None
+External Traffic Policy:  Cluster
+Events:                   <none>
+----------------------------------------------------
+
+$ curl host01:30080
+<h1>This request was processed by host: webapp1-5f4c9c89-snnp4</h1>
+----------------------------------------------------
+
+$ kubectl apply -f deployment.yaml
+Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply
+deployment.extensions/webapp1 configured
+----------------------------------------------------
+
+$ kubectl get deployment
+NAME      READY   UP-TO-DATE   AVAILABLE   AGE
+webapp1   1/1     1            1           3m58s
+----------------------------------------------------
+
+$ kubectl get pods
+NAME                     READY   STATUS    RESTARTS   AGE
+webapp1-5f4c9c89-snnp4   1/1     Running   0          3m57s
+----------------------------------------------------
+
+$ curl host01:30080
+<h1>This request was processed by host: webapp1-5f4c9c89-snnp4</h1>
+----------------------------------------------------
+
 
