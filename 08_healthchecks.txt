@@ -1,0 +1,164 @@
+# Reference: https://www.katacoda.com/courses/kubernetes/liveness-readiness-healthchecks
+
+-------------------------------------
+master $ launch.sh
+Waiting for Kubernetes to start...
+Kubernetes started
+-------------------------------------
+master $ kubectl apply -f deploy.yaml
+replicationcontroller/frontend created
+replicationcontroller/bad-frontend created
+service/frontend created
+-------------------------------------
+master $ cat deploy.yaml
+kind: List
+apiVersion: v1
+items:
+- kind: ReplicationController
+  apiVersion: v1
+  metadata:
+    name: frontend
+    labels:
+      name: frontend
+  spec:
+    replicas: 1
+    selector:
+      name: frontend
+    template:
+      metadata:
+        labels:
+          name: frontend
+      spec:
+        containers:
+        - name: frontend
+          image: katacoda/docker-http-server:health
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 1
+            timeoutSeconds: 1
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 1
+            timeoutSeconds: 1
+- kind: ReplicationController
+  apiVersion: v1
+  metadata:
+    name: bad-frontend
+    labels:
+      name: bad-frontend
+  spec:
+    replicas: 1
+    selector:
+      name: bad-frontend
+    template:
+      metadata:
+        labels:
+          name: bad-frontend
+      spec:
+        containers:
+        - name: bad-frontend
+          image: katacoda/docker-http-server:unhealthy
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 1
+            timeoutSeconds: 1
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 1
+            timeoutSeconds: 1
+- kind: Service
+  apiVersion: v1
+  metadata:
+    labels:
+      app: frontend
+      kubernetes.io/cluster-service: "true"
+    name: frontend
+  spec:
+    type: NodePort
+    ports:
+    - port: 80
+      nodePort: 30080
+    selector:
+      app: frontend
+-------------------------------------
+master $ kubectl get pods --selector="name=bad-frontend"
+NAME                 READY   STATUS    RESTARTS   AGE
+bad-frontend-thx97   0/1     Pending   0          27s
+-------------------------------------
+master $ pod=$(kubectl get pods --selector="name=bad-frontend" --output=jsonpath={.items..metadata.name})
+-------------------------------------
+master $ kubectl describe pod $pod
+Name:               bad-frontend-thx97
+Namespace:          default
+Priority:           0
+PriorityClassName:  <none>
+Node:               master/172.17.0.11
+Start Time:         Wed, 16 Oct 2019 03:03:31 +0000
+Labels:             name=bad-frontend
+Annotations:        <none>
+Status:             Pending
+IP:
+Controlled By:      ReplicationController/bad-frontend
+Containers:
+  bad-frontend:
+    Container ID:
+    Image:          katacoda/docker-http-server:unhealthy
+    Image ID:
+    Port:           <none>
+    Host Port:      <none>
+    State:          Waiting
+      Reason:       ContainerCreating
+    Ready:          False
+    Restart Count:  0
+    Liveness:       http-get http://:80/ delay=1s timeout=1s period=10s #success=1 #failure=3
+    Readiness:      http-get http://:80/ delay=1s timeout=1s period=10s #success=1 #failure=3
+    Environment:    <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from default-token-2txgg (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             False
+  ContainersReady   False
+  PodScheduled      True
+Volumes:
+  default-token-2txgg:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  default-token-2txgg
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s
+Events:
+  Type     Reason            Age                From               Message
+  ----     ------            ----               ----               -------
+  Warning  FailedScheduling  13s (x6 over 32s)  default-scheduler  0/1 nodes are available: 1 node(s) had taints that the pod didn't tolerate.
+  Normal   Scheduled         2s                 default-scheduler  Successfully assigned default/bad-frontend-thx97 to master
+  Normal   Pulling           1s                 kubelet, 
+-------------------------------------
+master    Pulling image "katacoda/docker-http-server:unhealthy"
+-------------------------------------
+master $ kubectl get pods --selector="name=frontend"
+NAME             READY   STATUS              RESTARTS   AGE
+frontend-bw489   0/1     ContainerCreating   0          37s
+-------------------------------------
+master $ ckubectl get pods --selector="name=frontend"
+ckubectl: command not found
+-------------------------------------
+master $ pod=$(kubectl get pods --selector="name=frontend" --output=jsonpath={.items..metadata.name})
+-------------------------------------
+master $ kubectl exec $pod -- /usr/bin/curl -s localhost/unhealthy
+-------------------------------------
+master $ kubectl get pods --selector="name=frontend"
+NAME             READY   STATUS    RESTARTS   AGE
+frontend-bw489   1/1     Running   0          62s
+-------------------------------------
