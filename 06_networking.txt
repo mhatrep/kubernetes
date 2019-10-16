@@ -1,0 +1,370 @@
+Reference: https://www.katacoda.com/courses/kubernetes/networking-introduction
+
+-------------------------------------
+master $ launch.sh
+Waiting for Kubernetes to start...
+Kubernetes started
+-------------------------------------
+master $ kubectl apply -f clusterip.yaml
+service/webapp1-clusterip-svc created
+deployment.extensions/webapp1-clusterip-deployment created
+-------------------------------------
+master $ cat clusterip.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp1-clusterip-svc
+  labels:
+    app: webapp1-clusterip
+spec:
+  ports:
+  - port: 80
+  selector:
+    app: webapp1-clusterip
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: webapp1-clusterip-deployment
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: webapp1-clusterip
+    spec:
+      containers:
+      - name: webapp1-clusterip-pod
+        image: katacoda/docker-http-server:latest
+        ports:
+        - containerPort: 80
+---
+-------------------------------------
+master $ kubectl get pods
+NAME                                            READY   STATUS    RESTARTS   AGE
+webapp1-clusterip-deployment-669c7c65c4-98krp   1/1     Running   0          57s
+webapp1-clusterip-deployment-669c7c65c4-cv4nm   1/1     Running   0          57s
+-------------------------------------
+master $ kubectl get svc
+NAME                    TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
+kubernetes              ClusterIP   10.96.0.1      <none>        443/TCP   80s
+webapp1-clusterip-svc   ClusterIP   10.98.144.57   <none>        80/TCP    60s
+-------------------------------------
+master $ kubectl describe svc/webapp1-clusterip-svc
+Name:              webapp1-clusterip-svc
+Namespace:         default
+Labels:            app=webapp1-clusterip
+Annotations:       kubectl.kubernetes.io/last-applied-configuration:
+                     {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"labels":{"app":"webapp1-clusterip"},"name":"webapp1-clusterip-svc","name...
+Selector:          app=webapp1-clusterip
+Type:              ClusterIP
+IP:                10.98.144.57
+Port:              <unset>  80/TCP
+TargetPort:        80/TCP
+Endpoints:         10.32.0.4:80,10.32.0.6:80
+Session Affinity:  None
+Events:            <none>
+-------------------------------------
+master $ export CLUSTER_IP=$(kubectl get services/webapp1-clusterip-svc -o go-template='{{(index .spec.clusterIP)}}')
+-------------------------------------
+master $ echo CLUSTER_IP=$CLUSTER_IP
+CLUSTER_IP=10.98.144.57
+-------------------------------------
+master $ curl $CLUSTER_IP:80
+<h1>This request was processed by host: webapp1-clusterip-deployment-669c7c65c4-98krp</h1>
+-------------------------------------
+master $ curl $CLUSTER_IP:80
+<h1>This request was processed by host: webapp1-clusterip-deployment-669c7c65c4-98krp</h1>
+-------------------------------------
+master $ kubectl apply -f clusterip-target.yaml
+service/webapp1-clusterip-targetport-svc created
+deployment.extensions/webapp1-clusterip-targetport-deployment created
+-------------------------------------
+master $ cat clusterip-target.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp1-clusterip-targetport-svc
+  labels:
+    app: webapp1-clusterip-targetport
+spec:
+  ports:
+  - port: 8080
+    targetPort: 80  selector:
+    app: webapp1-clusterip-targetport
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: webapp1-clusterip-targetport-deployment
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: webapp1-clusterip-targetport
+    spec:
+      containers:
+      - name: webapp1-clusterip-targetport-pod
+        image: katacoda/docker-http-server:latest
+        ports:
+        - containerPort: 80
+---
+-------------------------------------
+master $ kubectl get svc
+NAME                               TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)    AGE
+kubernetes                         ClusterIP   10.96.0.1      <none>        443/TCP    2m37s
+webapp1-clusterip-svc              ClusterIP   10.98.144.57   <none>        80/TCP     2m17s
+webapp1-clusterip-targetport-svc   ClusterIP   10.108.88.46   <none>        8080/TCP   22s
+-------------------------------------
+master $ kubectl describe svc/webapp1-clusterip-targetport-svc
+Name:              webapp1-clusterip-targetport-svc
+Namespace:         default
+Labels:            app=webapp1-clusterip-targetport
+Annotations:       kubectl.kubernetes.io/last-applied-configuration:
+                     {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"labels":{"app":"webapp1-clusterip-targetport"},"name":"webapp1-clusterip...
+Selector:          app=webapp1-clusterip-targetport
+Type:              ClusterIP
+IP:                10.108.88.46
+Port:              <unset>  8080/TCP
+TargetPort:        80/TCP
+Endpoints:         10.32.0.7:80,10.32.0.8:80
+Session Affinity:  None
+Events:            <none>
+-------------------------------------
+master $ export CLUSTER_IP=$(kubectl get services/webapp1-clusterip-targetport-svc -o go-template='{{(index .spec.clusterIP)}}')
+-------------------------------------
+master $ echo CLUSTER_IP=$CLUSTER_IP
+CLUSTER_IP=10.108.88.46
+-------------------------------------
+master $ curl $CLUSTER_IP:8080
+<h1>This request was processed by host: webapp1-clusterip-targetport-deployment-5599945ff4-8x24m</h1>
+aster $ curl $CLUSTER_IP:8080
+<h1>This request was processed by host: webapp1-clusterip-targetport-deployment-5599945ff4-8x24m</h1>
+-------------------------------------
+master $ kubectl apply -f nodeport.yaml
+service/webapp1-nodeport-svc createddeployment.extensions/webapp1-nodeport-deployment created
+-------------------------------------
+master $ cat nodeport.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp1-nodeport-svc  labels:
+    app: webapp1-nodeport
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    nodePort: 30080
+  selector:
+    app: webapp1-nodeport
+---apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: webapp1-nodeport-deployment
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: webapp1-nodeport
+    spec:
+      containers:
+      - name: webapp1-nodeport-pod
+        image: katacoda/docker-http-server:latest
+        ports:
+        - containerPort: 80
+---
+-------------------------------------
+master $ kubectl get svc
+NAME                               TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+kubernetes                         ClusterIP   10.96.0.1       <none>        443/TCP        3m30s
+webapp1-clusterip-svc              ClusterIP   10.98.144.57    <none>        80/TCP         3m10s
+webapp1-clusterip-targetport-svc   ClusterIP   10.108.88.46    <none>        8080/TCP       75s
+webapp1-nodeport-svc               NodePort    10.102.97.144   <none>        80:30080/TCP   26s
+-------------------------------------
+master $ kubectl describe svc/webapp1-nodeport-svc
+Name:                     webapp1-nodeport-svcNamespace:                default
+Labels:                   app=webapp1-nodeport
+Annotations:              kubectl.kubernetes.io/last-applied-configuration:
+                            {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"labels":{"app":"webapp1-nodeport"},"name":"webapp1-nodeport-svc","namesp...
+Selector:                 app=webapp1-nodeport
+Type:                     NodePort
+IP:                       10.102.97.144
+Port:                     <unset>  80/TCP
+TargetPort:               80/TCP
+NodePort:                 <unset>  30080/TCP
+Endpoints:                10.32.0.10:80,10.32.0.9:80
+Session Affinity:         None
+External Traffic Policy:  Cluster
+Events:                   <none>
+-------------------------------------
+master $ curl 172.17.0.11:30080
+<h1>This request was processed by host: webapp1-nodeport-deployment-677bd89b96-8zrtl</h1>
+-------------------------------------
+master $ sed -i 's/HOSTIP/172.17.0.11/g' externalip.yaml
+-------------------------------------
+master $ cat externalip.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp1-externalip-svc
+  labels:
+    app: webapp1-externalipspec:
+  ports:
+  - port: 80
+  externalIPs:  - 172.17.0.11
+  selector:
+    app: webapp1-externalip
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: webapp1-externalip-deployment
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: webapp1-externalip
+    spec:
+      containers:
+      - name: webapp1-externalip-pod
+        image: katacoda/docker-http-server:latest
+        ports:
+        - containerPort: 80
+---
+-------------------------------------
+master $ kubectl apply -f externalip.yaml
+service/webapp1-externalip-svc created
+deployment.extensions/webapp1-externalip-deployment created
+-------------------------------------
+master $ kubectl get svcNAME                               TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+kubernetes                         ClusterIP   10.96.0.1       <none>        443/TCP        4m26s
+webapp1-clusterip-svc              ClusterIP   10.98.144.57    <none>        80/TCP         4m6s
+webapp1-clusterip-targetport-svc   ClusterIP   10.108.88.46    <none>        8080/TCP       2m11s
+webapp1-externalip-svc             ClusterIP   10.105.147.42   172.17.0.11   80/TCP         1s
+webapp1-nodeport-svc               NodePort    10.102.97.144   <none>        80:30080/TCP   82s
+-------------------------------------
+master $ kubectl describe svc/webapp1-externalip-svc
+Name:              webapp1-externalip-svc
+Namespace:         default
+Labels:            app=webapp1-externalip
+Annotations:       kubectl.kubernetes.io/last-applied-configuration:
+                     {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"labels":{"app":"webapp1-externalip"},"name":"webapp1-externalip-svc","na...
+Selector:          app=webapp1-externalip
+Type:              ClusterIP
+IP:                10.105.147.42
+External IPs:      172.17.0.11
+Port:              <unset>  80/TCP
+TargetPort:        80/TCP
+Endpoints:         <none>
+Session Affinity:  None
+Events:            <none>
+-------------------------------------
+master $ curl 172.17.0.11
+<h1>This request was processed by host: webapp1-externalip-deployment-6446b488f8-8nbc9</h1>
+-------------------------------------
+master $ kubectl apply -f cloudprovider.yamldaemonset.extensions/kube-keepalived-vip configured
+configmap/vip-configmap configured
+deployment.apps/keepalived-cloud-provider created
+-------------------------------------
+master $ kubectl get pods -n kube-system
+NAME                                        READY   STATUS              RESTARTS   AGE
+coredns-fb8b8dccf-5ch7s                     1/1     Running             0          4m43s
+coredns-fb8b8dccf-7vd79                     1/1     Running             0          4m43s
+etcd-
+-------------------------------------
+master                                 1/1     Running             0          3m28s
+katacoda-cloud-provider-d5cb9d656-5dsx8     1/1     Running             0          4m42s
+keepalived-cloud-provider-78fc4468b-4hw6j   0/1     ContainerCreating   0          2s
+kube-apiserver-
+-------------------------------------
+master                       1/1     Running             0          3m54s
+kube-controller-manager-
+-------------------------------------
+master              1/1     Running             0          3m31skube-keepalived-vip-6sxqt                   1/1     Running             0          4m5s
+kube-proxy-fqzmz                            1/1     Running             0          4m43s
+kube-scheduler-
+-------------------------------------
+master                       1/1     Running             0          3m53s
+weave-net-6jjkc                             2/2     Running             1          4m43s
+-------------------------------------
+master $ kubectl apply -f loadbalancer.yaml
+service/webapp1-loadbalancer-svc created
+deployment.extensions/webapp1-loadbalancer-deployment created
+-------------------------------------
+master $ cat loadbalancer.yamlapiVersion: v1
+kind: Service
+metadata:
+  name: webapp1-loadbalancer-svc
+  labels:
+    app: webapp1-loadbalancer
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+  selector:
+    app: webapp1-loadbalancer---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: webapp1-loadbalancer-deployment
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: webapp1-loadbalancer
+    spec:
+      containers:
+      - name: webapp1-loadbalancer-pod
+        image: katacoda/docker-http-server:latest
+        ports:
+        - containerPort: 80
+---
+-------------------------------------
+master $ kubectl get svc
+NAME                               TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+kubernetes                         ClusterIP      10.96.0.1       <none>        443/TCP        5m30s
+webapp1-clusterip-svc              ClusterIP      10.98.144.57    <none>        80/TCP         5m10s
+webapp1-clusterip-targetport-svc   ClusterIP      10.108.88.46    <none>        8080/TCP       3m15s
+webapp1-externalip-svc             ClusterIP      10.105.147.42   172.17.0.11   80/TCP         65s
+webapp1-loadbalancer-svc           LoadBalancer   10.101.229.13   172.17.0.11   80:32707/TCP   36s
+webapp1-nodeport-svc               NodePort       10.102.97.144   <none>        80:30080/TCP   2m26s
+-------------------------------------
+master $ kubectl describe svc/webapp1-loadbalancer-svc
+Name:                     webapp1-loadbalancer-svc
+Namespace:                default
+Labels:                   app=webapp1-loadbalancer
+Annotations:              kubectl.kubernetes.io/last-applied-configuration:
+                            {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"labels":{"app":"webapp1-loadbalancer"},"name":"webapp1-loadbalancer-svc"...
+Selector:                 app=webapp1-loadbalancer
+Type:                     LoadBalancer
+IP:                       10.101.229.13
+LoadBalancer Ingress:     172.17.0.11
+Port:                     <unset>  80/TCP
+TargetPort:               80/TCP
+NodePort:                 <unset>  32707/TCP
+Endpoints:                10.32.0.14:80,10.32.0.15:80
+Session Affinity:         None
+External Traffic Policy:  Cluster
+Events:
+  Type    Reason                Age   From                Message
+  ----    ------                ----  ----                -------
+  Normal  CreatingLoadBalancer  37s   service-controller  Creating load balancer
+  Normal  CreatedLoadBalancer   37s   service-controller  Created load balancer
+  
+-------------------------------------
+master $ export LoadBalancerIP=$(kubectl get services/webapp1-loadbalancer-svc -o go-template='{{(index .status.loadBalancer.ingress 0).ip}}')
+-------------------------------------
+master $ echo LoadBalancerIP=$LoadBalancerIP
+LoadBalancerIP=172.17.0.11
+-------------------------------------
+master $ curl $LoadBalancerIP
+<h1>This request was processed by host: webapp1-externalip-deployment-6446b488f8-8nbc9</h1>
+-------------------------------------
+master $ curl $LoadBalancerIP
+<h1>This request was processed by host: webapp1-externalip-deployment-6446b488f8-8nbc9</h1>
+
+----------------------------------------------------
