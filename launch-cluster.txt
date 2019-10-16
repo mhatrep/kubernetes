@@ -1,0 +1,42 @@
+$ minikube version
+minikube version: v1.3.0
+commit: 43969594266d77b555a207b0f3e9b3fa1dc92b1f
+
+----------------------------------------------------
+
+$ minikube start --wait=false
+* minikube v1.3.0 on Ubuntu 18.04
+* Running on localhost (CPUs=2, Memory=2461MB, Disk=47990MB) ...
+* OS release is Ubuntu 18.04.2 LTS
+* Preparing Kubernetes v1.15.0 on Docker 18.09.5 ...
+  - kubelet.resolv-conf=/run/systemd/resolve/resolv.conf
+* Pulling images ...
+* Launching Kubernetes ...
+* Done! kubectl is now configured to use "minikube"
+
+----------------------------------------------------
+
+$ kubectl cluster-info
+Kubernetes master is running at https://172.17.0.26:8443
+KubeDNS is running at https://172.17.0.26:8443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+
+----------------------------------------------------
+$ kubectl get nodes
+NAME       STATUS   ROLES    AGE   VERSION
+minikube   Ready    master   76s   v1.15.0
+----------------------------------------------------
+$ kubectl create deployment first-deployment --image=katacoda/docker-http-server
+deployment.apps/first-deployment created
+----------------------------------------------------
+
+$ kubectl get pods
+NAME                               READY   STATUS    RESTARTS   AGE
+first-deployment-8cbf74484-7rb49   1/1     Running   0          11s
+----------------------------------------------------
+
+$ kubectl expose deployment first-deployment --port=80 --type=NodePort
+service/first-deployment exposed
+
+----------------------------------------------------
