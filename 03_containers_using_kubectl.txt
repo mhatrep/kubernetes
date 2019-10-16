@@ -66,4 +66,55 @@ service/http exposed
 $ curl http://172.17.0.9:8000
 <h1>This request was processed by host: http-5fcf9dd9cb-b8pkl</h1>
 ----------------------------------------------------
+$ kubectl run httpexposed --image=katacoda/docker-http-server:latest --replicas=1 --port=80 --hostport=8001
+kubectl run --generator=deployment/apps.v1 is DEPRECATED and will be removed in a future version. Use kubectl run --generator=run-pod/v1 or kubectl create instead.
+deployment.apps/httpexposed created
+
+----------------------------------------------------
+
+$ curl http://172.17.0.9:8001
+curl: (7) Failed to connect to 172.17.0.9 port 8001: Connection refused
+
+----------------------------------------------------
+
+$ kubectl get svc
+NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+http         ClusterIP   10.106.144.61   172.17.0.9    8000/TCP   95s
+kubernetes   ClusterIP   10.96.0.1       <none>        443/TCP    3m55s
+
+----------------------------------------------------
+
+$ docker ps | grep httpexposed
+02f292fcce0e        katacoda/docker-http-server   "/app"                   4 seconds ago       Up 3 seconds                 k8s_httpexposed_httpexposed-569df5d86-bcxxd_default_b17407d7-419f-47ad-86e0-5a4c2e4a86a0_0
+1569de388df7        k8s.gcr.io/pause:3.1          "/pause"                 6 seconds ago       Up 5 seconds        0.0.0.0:8001->80/tcp   k8s_POD_httpexposed-569df5d86-bcxxd_default_b17407d7-419f-47ad-86e0-5a4c2e4a86a0_0
+----------------------------------------------------
+
+$ kubectl scale --replicas=3 deployment http
+deployment.extensions/http scaled$ kubectl get pods
+NAME                          READY   STATUS              RESTARTS   AGE
+http-5fcf9dd9cb-b8pkl         1/1     Running             0          3m24s
+http-5fcf9dd9cb-qwmhw         1/1     Running             0          4s
+http-5fcf9dd9cb-x6cdj         0/1     ContainerCreating   0          4s
+httpexposed-569df5d86-bcxxd   1/1     Running             0          51s
+----------------------------------------------------
+
+$ kubectl describe svc http
+Name:              http
+Namespace:         default
+Labels:            run=httpAnnotations:       <none>
+Selector:          run=httpType:              ClusterIP
+IP:                10.106.144.61
+External IPs:      172.17.0.9
+Port:              <unset>  8000/TCP
+TargetPort:        80/TCP
+Endpoints:         172.18.0.4:80,172.18.0.6:80,172.18.0.7:80
+Session Affinity:  None
+Events:            <none>
+
+----------------------------------------------------
+
+$ curl http://172.17.0.9:8000
+<h1>This request was processed by host: http-5fcf9dd9cb-x6cdj</h1>
+----------------------------------------------------
+
 
