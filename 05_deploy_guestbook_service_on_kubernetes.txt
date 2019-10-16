@@ -104,4 +104,20 @@ redis-master   ClusterIP   10.97.78.34      <none>        6379/TCP       2m49s
 redis-slave    ClusterIP   10.107.235.221   <none>        6379/TCP       83s
 ----------------------------------------------------
 
+master $ kubectl get pods
+NAME                 READY   STATUS    RESTARTS   AGE
+frontend-42x2q       1/1     Running   0          2m12s
+frontend-bpgnf       1/1     Running   0          2m12s
+frontend-tjn4k       1/1     Running   0          2m12s
+redis-master-v8hdn   1/1     Running   0          4m53s
+redis-slave-b2dkp    1/1     Running   0          3m20s
+redis-slave-tlwph    1/1     Running   0          3m20s
+
+----------------------------------------------------
+
+master $ kubectl describe service frontend | grep NodePort
+Type:                     NodePort
+NodePort:                 <unset>  30080/TCP
+
+----------------------------------------------------
 
