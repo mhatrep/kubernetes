@@ -176,3 +176,13 @@ master $ curl $ip
 
 ----------------------------------------------------
 
+master $ kubectl delete pod www
+pod "www" deleted
+master $ kubectl create -f pod-www2.yaml
+pod/www2 created
+master $ ip=$(kubectl get pod www2 -o yaml |grep podIP | awk '{split($0,a,":"); print a[2]}'); curl $ip
+Hello NFS World
+
+----------------------------------------------------
+
+gh
