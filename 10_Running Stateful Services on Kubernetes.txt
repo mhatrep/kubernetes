@@ -56,3 +56,123 @@ nfs-0001   2Gi        RWO,RWX        Recycle          Available                 
 nfs-0002   5Gi        RWO,RWX        Recycle          Available                                   3s
 ----------------------------------------------------
 
+master $ kubectl create -f pvc-mysql.yaml
+persistentvolumeclaim/claim-mysql created
+master $ kubectl create -f pvc-http.yaml
+persistentvolumeclaim/claim-http created
+master $ cat pvc-mysql.yaml pvc-http.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: claim-mysql
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 3Gi
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: claim-http
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+master $ kubectl get pvc
+NAME          STATUS   VOLUME     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+claim-http    Bound    nfs-0001   2Gi        RWO,RWX                       3s
+claim-mysql   Bound    nfs-0002   5Gi        RWO,RWX                       6s
+----------------------------------------------------
+
+master $ kubectl create -f pod-mysql.yaml
+pod/mysql created
+master $ kubectl create -f pod-www.yaml
+pod/www created
+master $ cat pod-mysql.yaml pod-www.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mysql
+  labels:
+    name: mysql
+spec:
+  containers:
+  - name: mysql
+    image: openshift/mysql-55-centos7
+    env:
+      - name: MYSQL_ROOT_PASSWORD
+        value: yourpassword
+      - name: MYSQL_USER
+        value: wp_user
+      - name: MYSQL_PASSWORD
+        value: wp_pass
+      - name: MYSQL_DATABASE
+        value: wp_db
+    ports:
+      - containerPort: 3306
+        name: mysql
+    volumeMounts:
+      - name: mysql-persistent-storage
+        mountPath: /var/lib/mysql/data
+  volumes:
+    - name: mysql-persistent-storage
+      persistentVolumeClaim:
+        claimName: claim-mysql
+apiVersion: v1
+kind: Pod
+metadata:
+  name: www
+  labels:
+    name: www
+spec:
+  containers:
+  - name: www
+    image: nginx:alpine
+    ports:
+      - containerPort: 80
+        name: www
+    volumeMounts:
+      - name: www-persistent-storage
+        mountPath: /usr/share/nginx/html
+  volumes:
+    - name: www-persistent-storage
+      persistentVolumeClaim:
+        claimName: claim-http
+master $ kubectl get pods
+NAME    READY   STATUS              RESTARTS   AGE
+mysql   0/1     ContainerCreating   0          8s
+www     0/1     ContainerCreating   0          5s
+
+----------------------------------------------------
+
+master $ cdocker exec -it nfs-server bash -c "echo 'Hello World' > /exports/data-0001/index.html"
+No command 'cdocker' found, did you mean:
+ Command 'docker' from package 'docker.io' (universe)
+ Command 'kdocker' from package 'kdocker' (universe)
+cdocker: command not found
+master $ ip=$(kubectl get pod www -o yaml |grep podIP | awk '{split($0,a,":"); print a[2]}'); echo $ip
+10.32.0.6
+master $ curl $ip
+<html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+<hr><center>nginx/1.17.4</center>
+</body>
+</html>
+master $ docker exec -it nfs-server bash -c "echo 'Hello NFS World' > /exports/data-0001/index.html"
+master $ curl $ip
+<html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+<hr><center>nginx/1.17.4</center>
+</body>
+</html>
+
+
+----------------------------------------------------
+
