@@ -377,4 +377,18 @@ $ crictl ps | grep docker-http-server
 
 ----------------------------------------------------
 
-
+$ kubectl apply -f dashboard.yaml
+serviceaccount "kubernetes-dashboard" created
+clusterrolebinding "kubernetes-dashboard" created
+deployment "kubernetes-dashboard" created
+service "kubernetes-dashboard" created
+$ kubectl get pods -n kube-system
+NAME                                   READY     STATUS              RESTARTS   AGE
+etcd-master01                          1/1       Running             0          5m
+kube-apiserver-master01                1/1       Running             0          5m
+kube-controller-manager-master01       1/1       Running             0          5m
+kube-dns-6f4fd4bdf-tvlvr               3/3       Running             0          6m
+kube-proxy-vbpx5                       1/1       Running             0          6m
+kube-scheduler-master01                1/1       Running             0          5m
+kubernetes-dashboard-748fc5b68-hqnpn   0/1       ContainerCreating   0          3s
+weave-net-jkp5j                        2/2       Running             0          2m
