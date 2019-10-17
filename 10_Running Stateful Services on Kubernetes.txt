@@ -1,0 +1,58 @@
+# Reference: https://www.katacoda.com/courses/kubernetes/storage-introduction
+
+master $ launch.sh
+Waiting for Kubernetes to start...
+Kubernetes started
+master $ docker run -d --net=host \
+>    --privileged --name nfs-server \
+>    katacoda/contained-nfs-server:centos7 \
+>    /exports/data-0001 /exports/data-0002
+Unable to find image 'katacoda/contained-nfs-server:centos7' locally
+centos7: Pulling from katacoda/contained-nfs-server
+8d30e94188e7: Pull complete
+2b2b27f1f462: Pull complete
+133e63cf95fe: Pull complete
+Digest: sha256:5f2ea4737fe27f26be5b5cabaa23e24180079a4dce8d5db235492ec48c5552d1
+Status: Downloaded newer image for katacoda/contained-nfs-server:centos7
+8ada0bbcb1de6408481b1d0fcaa88f4c896613eb9cb74c4df102ba058d1692c8
+----------------------------------------------------
+
+master $ kubectl create -f nfs-0001.yaml
+persistentvolume/nfs-0001 created
+master $ kubectl create -f nfs-0002.yaml
+persistentvolume/nfs-0002 created
+master $ cat nfs-0001.yaml nfs-0002.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-0001
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Recycle
+  nfs:
+    server: 172.17.0.82
+    path: /exports/data-0001
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-0002
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Recycle
+  nfs:
+    server: 172.17.0.82
+    path: /exports/data-0002
+master $ kubectl get pv
+NAME       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM   STORAGECLASS   REASON   AGE
+nfs-0001   2Gi        RWO,RWX        Recycle          Available                                   5s
+nfs-0002   5Gi        RWO,RWX        Recycle          Available                                   3s
+----------------------------------------------------
+
