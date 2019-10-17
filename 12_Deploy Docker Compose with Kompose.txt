@@ -1,0 +1,119 @@
+# Reference: https://www.katacoda.com/courses/kubernetes/deploy-docker-compose-using-kompose
+
+docker-compose.yml
+
+version: "2"
+services:
+  redis-master:
+    image: redis:latest
+    ports:
+      - "6379"
+  redis-slave:
+    image: gcr.io/google_samples/gb-redisslave:v1
+    ports:
+      - "6379"
+    environment:
+      - GET_HOSTS_FROM=dns
+  frontend:
+    image: gcr.io/google-samples/gb-frontend:v3
+    ports:
+      - "80:80"
+    environment:
+      - GET_HOSTS_FROM=dns
+
+----------------------------------------------------
+
+master $ launch.sh
+Waiting for Kubernetes to start...
+Kubernetes started
+&& chmod +x /usr/bin/komposehub.com/kubernetes/kompose/releases/download/v1.9.0/kompose-linux-amd64 -o /usr/bin/kompose
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   609    0   609    0     0    146      0 --:--:--  0:00:04 --:--:--   146
+  7 45.6M    7 3586k    0     0  59557      0  0:13:24  0:01:01  0:12:23 49555
+100 45.6M  100 45.6M    0     0   165k      0  0:04:42  0:04:42 --:--:--  799k
+
+
+----------------------------------------------------
+
+master $ kompose up
+INFO We are going to create Kubernetes Deployments, Services and PersistentVolumeClaims for your Dockerized application.If you need different kind of resources, use the 'kompose convert' and 'kubectl create -f' commands instead.
+
+INFO Deploying application in "default" namespace
+INFO Successfully created Service: frontend
+INFO Successfully created Service: redis-master
+INFO Successfully created Service: redis-slave
+INFO Successfully created Deployment: frontend
+INFO Successfully created Deployment: redis-master
+INFO Successfully created Deployment: redis-slave
+
+Your application has been deployed to Kubernetes. You can run 'kubectl get deployment,svc,pods,pvc' for details.
+
+
+----------------------------------------------------
+master $ kubectl get deployment,svc,pods,pvc
+NAME                                 READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.extensions/frontend       0/1     1            0           21s
+deployment.extensions/redis-master   0/1     1            0           21s
+deployment.extensions/redis-slave    0/1     1            0           21s
+
+NAME                   TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+service/frontend       ClusterIP   10.99.90.11      <none>        80/TCP     21s
+service/kubernetes     ClusterIP   10.96.0.1        <none>        443/TCP    19m
+service/redis-master   ClusterIP   10.101.112.102   <none>        6379/TCP   21s
+service/redis-slave    ClusterIP   10.99.45.89      <none>        6379/TCP   21s
+
+NAME                               READY   STATUS              RESTARTS   AGE
+pod/frontend-64bcc8dd75-gmdwt      0/1     ContainerCreating   0          21s
+pod/redis-master-fc59d57fd-mckcl   0/1     ContainerCreating   0          21s
+pod/redis-slave-8676777656-82rf9   0/1     ContainerCreating   0          21s
+----------------------------------------------------
+
+master $ kompose convert
+INFO Kubernetes file "frontend-service.yaml" created
+INFO Kubernetes file "redis-master-service.yaml" created
+INFO Kubernetes file "redis-slave-service.yaml" created
+INFO Kubernetes file "frontend-deployment.yaml" created
+INFO Kubernetes file "redis-master-deployment.yaml" created
+INFO Kubernetes file "redis-slave-deployment.yaml" created
+master $ ls
+docker-compose.yml        frontend-service.yaml  redis-master-deployment.yaml  redis-slave-deployment.yaml
+frontend-deployment.yaml  go                     redis-master-service.yaml     redis-slave-service.yaml
+----------------------------------------------------
+
+master $ kubectl apply -f frontend-service.yaml,redis-master-service.yaml,redis-slave-service.yaml,frontend-deployment.yaml,redis-master-deployment.yaml,redis-slave-deployment.yaml
+Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply
+service/frontend configured
+Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply
+service/redis-master configured
+Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply
+service/redis-slave configured
+Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply
+deployment.extensions/frontend configured
+Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply
+deployment.extensions/redis-master configured
+Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply
+deployment.extensions/redis-slave configured
+----------------------------------------------------
+
+master $ kompose --provider openshift convert
+INFO OpenShift file "frontend-service.yaml" created
+INFO OpenShift file "redis-master-service.yaml" created
+INFO OpenShift file "redis-slave-service.yaml" created
+INFO OpenShift file "frontend-deploymentconfig.yaml" created
+INFO OpenShift file "frontend-imagestream.yaml" created
+INFO OpenShift file "redis-master-deploymentconfig.yaml" created
+INFO OpenShift file "redis-master-imagestream.yaml" created
+INFO OpenShift file "redis-slave-deploymentconfig.yaml" created
+INFO OpenShift file "redis-slave-imagestream.yaml" created
+master $ kompose convert -j
+INFO Kubernetes file "frontend-service.json" created
+INFO Kubernetes file "redis-master-service.json" created
+INFO Kubernetes file "redis-slave-service.json" created
+INFO Kubernetes file "frontend-deployment.json" created
+INFO Kubernetes file "redis-master-deployment.json" created
+INFO Kubernetes file "redis-slave-deployment.json" created
+
+----------------------------------------------------
+
+
