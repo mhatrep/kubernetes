@@ -1,0 +1,151 @@
+# Reference: https://www.katacoda.com/courses/kubernetes/heptio-velero
+
+
+master $ launch.sh
+Waiting for Kubernetes to start...
+Kubernetes started
+master $ git clone https://github.com/heptio/velero
+Cloning into 'velero'...
+remote: Enumerating objects: 1, done.
+remote: Counting objects: 100% (1/1), done.
+remote: Total 26325 (delta 0), reused 0 (delta 0), pack-reused 26324
+Receiving objects: 100% (26325/26325), 19.25 MiB | 13.28 MiB/s, done.
+Resolving deltas: 100% (16681/16681), done.
+Checking connectivity... done.
+master $ curl -LO https://github.com/heptio/velero/releases/download/v1.1.0/velero-v1.1.0-linux-amd64.tar.gz
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   162    0   162    0     0    535      0 --:--:-- --:--:-- --:--:--   534
+100   622    0   622    0     0   1330      0 --:--:-- --:--:-- --:--:--  1330
+100 25.4M  100 25.4M    0     0  4684k      0  0:00:05  0:00:05 --:--:-- 5964k
+master $ tar -C /usr/local/bin -xzvf velero-v1.1.0-linux-amd64.tar.gz
+velero-v1.1.0-linux-amd64/LICENSE
+velero-v1.1.0-linux-amd64/examples/README.md
+velero-v1.1.0-linux-amd64/examples/minio
+velero-v1.1.0-linux-amd64/examples/minio/00-minio-deployment.yaml
+velero-v1.1.0-linux-amd64/examples/nginx-app
+velero-v1.1.0-linux-amd64/examples/nginx-app/README.md
+velero-v1.1.0-linux-amd64/examples/nginx-app/base.yaml
+velero-v1.1.0-linux-amd64/examples/nginx-app/with-pv.yaml
+velero-v1.1.0-linux-amd64/velero
+master $ export PATH=$PATH:/usr/local/bin/velero-v1.1.0-linux-amd64/
+master $ echo "[default]
+> aws_access_key_id = minio
+> aws_secret_access_key = minio123" > credentials-velero
+master $ kubectl apply -f velero/examples/minio/00-minio-deployment.yaml
+namespace/velero created
+deployment.apps/minio created
+service/minio created
+job.batch/minio-setup created
+master $ velero install \
+>     --provider aws \
+>     --bucket velero \
+>     --secret-file ./credentials-velero \
+>     --use-volume-snapshots=false \
+>     --backup-location-config region=minio,s3ForcePathStyle="true",s3Url=http://minio.velero.svc:9000
+CustomResourceDefinition/serverstatusrequests.velero.io: attempting to create resource
+CustomResourceDefinition/serverstatusrequests.velero.io: created
+CustomResourceDefinition/backups.velero.io: attempting to create resource
+CustomResourceDefinition/backups.velero.io: created
+CustomResourceDefinition/restores.velero.io: attempting to create resource
+CustomResourceDefinition/restores.velero.io: created
+CustomResourceDefinition/schedules.velero.io: attempting to create resource
+CustomResourceDefinition/schedules.velero.io: created
+CustomResourceDefinition/downloadrequests.velero.io: attempting to create resource
+CustomResourceDefinition/downloadrequests.velero.io: created
+CustomResourceDefinition/deletebackuprequests.velero.io: attempting to create resource
+CustomResourceDefinition/deletebackuprequests.velero.io: created
+CustomResourceDefinition/resticrepositories.velero.io: attempting to create resource
+CustomResourceDefinition/resticrepositories.velero.io: created
+CustomResourceDefinition/volumesnapshotlocations.velero.io: attempting to create resource
+CustomResourceDefinition/volumesnapshotlocations.velero.io: created
+CustomResourceDefinition/podvolumebackups.velero.io: attempting to create resource
+CustomResourceDefinition/podvolumebackups.velero.io: created
+CustomResourceDefinition/podvolumerestores.velero.io: attempting to create resource
+CustomResourceDefinition/podvolumerestores.velero.io: created
+CustomResourceDefinition/backupstoragelocations.velero.io: attempting to create resource
+CustomResourceDefinition/backupstoragelocations.velero.io: created
+Waiting for resources to be ready in cluster...
+Namespace/velero: attempting to create resource
+Namespace/velero: already exists, proceeding
+Namespace/velero: created
+ClusterRoleBinding/velero: attempting to create resource
+ClusterRoleBinding/velero: created
+ServiceAccount/velero: attempting to create resource
+ServiceAccount/velero: created
+Secret/cloud-credentials: attempting to create resource
+Secret/cloud-credentials: created
+BackupStorageLocation/default: attempting to create resource
+BackupStorageLocation/default: created
+Deployment/velero: attempting to create resource
+Deployment/velero: created
+Velero is installed! ⛵ Use 'kubectl logs deployment/velero -n velero' to view the status.
+master $ kubectl apply -f velero/examples/nginx-app/base.yaml
+kubectl get deployments -l component=velero --namespace=velero
+namespace/nginx-example created
+deployment.apps/nginx-deployment created
+service/my-nginx created
+master $ kubectl get deployments -l component=velero --namespace=velero
+NAME     READY   UP-TO-DATE   AVAILABLE   AGE
+velero   0/1     1            0           16s
+master $ kubectl get deployments --namespace=nginx-example
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+nginx-deployment   0/2     2            0           10s
+master $ velero backup create nginx-backup --selector app=nginx
+Backup request "nginx-backup" submitted successfully.
+Run `velero backup describe nginx-backup` or `velero backup logs nginx-backup` for more details.
+master $ velero backup describe nginx-backup
+Name:         nginx-backup
+Namespace:    velero
+Labels:       <none>
+Annotations:  <none>
+
+Phase:  New
+
+Namespaces:
+  Included:  *
+  Excluded:  <none>
+
+Resources:
+  Included:        *
+  Excluded:        <none>
+  Cluster-scoped:  auto
+
+Label selector:  app=nginx
+
+Storage Location:
+
+Snapshot PVs:  auto
+
+TTL:  720h0m0s
+
+Hooks:  <none>
+
+Backup Format Version:  0
+
+Started:    <n/a>
+Completed:  <n/a>
+
+Expiration:  0001-01-01 00:00:00 +0000 UTC
+
+Persistent Volumes: <none included>
+master $ kubectl delete namespace nginx-example
+namespace "nginx-example" deleted
+
+master $ kubectl get deployments --namespace=nginx-example
+No resources found.
+master $ kubectl get services --namespace=nginx-example
+No resources found.
+master $ kubectl get namespace/nginx-example
+Error from server (NotFound): namespaces "nginx-example" not found
+master $ velero restore create --from-backup nginx-backup
+Restore request "nginx-backup-20191019003413" submitted successfully.
+Run `velero restore describe nginx-backup-20191019003413` or `velero restore logs nginx-backup-20191019003413` for more details.
+master $ velero restore get
+NAME                          BACKUP         STATUS       WARNINGS   ERRORS   CREATED                         SELECTOR
+nginx-backup-20191019003413   nginx-backup   InProgress   0          0        2019-10-19 00:34:13 +0000 UTC   <none>
+master $ kubectl get services --namespace=nginx-example
+No resources found.
+master $ kubectl get namespace/nginx-example
+NAME            STATUS   AGE
+nginx-example   Active   8s
