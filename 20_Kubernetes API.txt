@@ -1,0 +1,1997 @@
+# Reference: https://www.katacoda.com/openshift/courses/operatorframework/k8s-api-fundamentals
+
+$ oc new-project myproject
+Now using project "myproject" on server "https://master:8443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app centos/ruby-25-centos7~https://github.com/sclorg/ruby-ex.git
+
+to build a new example application in Ruby.
+$ cat > pod-multi-container.yaml <<EOF
+> apiVersion: v1
+> kind: Pod
+> metadata:
+>   name: my-two-container-pod
+>   namespace: myproject
+>   labels:
+>     environment: dev
+> spec:
+>   containers:
+>     - name: server
+>       image: nginx:1.13-alpine
+>       ports:
+>         - containerPort: 80
+>           protocol: TCP
+>     - name: side-car
+>       image: alpine:latest
+>       command: ["/usr/bin/tail", "-f", "/dev/null"]
+>   restartPolicy: Never
+> EOF
+$ oc create -f pod-multi-container.yaml
+pod/my-two-container-pod created
+$ oc describe pod my-two-container-pod
+Name:               my-two-container-pod
+Namespace:          myproject
+Priority:           0
+PriorityClassName:  <none>
+Node:               master/172.17.0.17
+Start Time:         Sat, 19 Oct 2019 02:05:39 +0000
+Labels:             environment=dev
+Annotations:        openshift.io/scc=anyuid
+Status:             Pending
+IP:
+Containers:
+  server:
+    Container ID:
+    Image:          nginx:1.13-alpine
+    Image ID:
+    Port:           80/TCP
+    Host Port:      0/TCP
+    State:          Waiting
+      Reason:       ContainerCreating
+    Ready:          False
+    Restart Count:  0
+    Environment:    <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from default-token-bzx8z (ro)
+  side-car:
+    Container ID:
+    Image:         alpine:latest
+    Image ID:
+    Port:          <none>
+    Host Port:     <none>
+    Command:
+      /usr/bin/tail
+      -f
+      /dev/null
+    State:          Waiting
+      Reason:       ContainerCreating
+    Ready:          False
+    Restart Count:  0
+    Environment:    <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from default-token-bzx8z (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             False
+  ContainersReady   False
+  PodScheduled      True
+Volumes:
+  default-token-bzx8z:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  default-token-bzx8z
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  node-role.kubernetes.io/compute=true
+Tolerations:     <none>
+Events:
+  Type    Reason     Age   From               Message
+  ----    ------     ----  ----               -------
+  Normal  Scheduled  4s    default-scheduler  Successfully assigned myproject/my-two-container-pod to master
+  Normal  Pulling    2s    kubelet, master    pulling image "nginx:1.13-alpine"
+  
+
+----------------------------------------------------
+
+$ oc exec -it my-two-container-pod -c server -- /bin/sh
+/ # ip address
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN qlen 1
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+3: eth0@if29: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1450 qdisc noqueue state UP
+    link/ether 0a:58:0a:80:00:17 brd ff:ff:ff:ff:ff:ff
+    inet 10.128.0.23/23 brd 10.128.1.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::548b:93ff:fe3a:7c0c/64 scope link
+       valid_lft forever preferred_lft forever
+/ # netstat -ntlp
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN      1/nginx: master pro
+/ # hostname
+my-two-container-pod
+/ # ps
+PID   USER     TIME   COMMAND
+    1 root       0:00 nginx: master process nginx -g daemon off;
+    8 nginx      0:00 nginx: worker process
+    9 root       0:00 /bin/sh
+   20 root       0:00 ps
+/ # exit
+$ oc exec -it my-two-container-pod -c side-car -- /bin/sh
+/ # ip address
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN qlen 1
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+3: eth0@if29: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1450 qdisc noqueue state UP
+    link/ether 0a:58:0a:80:00:17 brd ff:ff:ff:ff:ff:ff
+    inet 10.128.0.23/23 brd 10.128.1.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::548b:93ff:fe3a:7c0c/64 scope link
+       valid_lft forever preferred_lft forever
+/ # netstat -ntlp
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN      -
+/ # hostname
+my-two-container-pod
+/ # exit
+
+
+----------------------------------------------------
+
+$ oc api-versions
+admissionregistration.k8s.io/v1beta1
+apiextensions.k8s.io/v1beta1
+apiregistration.k8s.io/v1
+apiregistration.k8s.io/v1beta1
+apps.openshift.io/v1
+apps/v1
+apps/v1beta1
+apps/v1beta2
+authentication.k8s.io/v1
+authentication.k8s.io/v1beta1
+authorization.k8s.io/v1
+authorization.k8s.io/v1beta1
+authorization.openshift.io/v1
+automationbroker.io/v1alpha1
+autoscaling/v1
+autoscaling/v2beta1
+batch/v1
+batch/v1beta1
+build.openshift.io/v1
+certificates.k8s.io/v1beta1
+events.k8s.io/v1beta1
+extensions/v1beta1
+image.openshift.io/v1
+monitoring.coreos.com/v1
+network.openshift.io/v1
+networking.k8s.io/v1
+oauth.openshift.io/v1
+policy/v1beta1
+project.openshift.io/v1
+quota.openshift.io/v1
+rbac.authorization.k8s.io/v1
+rbac.authorization.k8s.io/v1beta1
+route.openshift.io/v1
+scheduling.k8s.io/v1beta1
+security.openshift.io/v1
+servicecatalog.k8s.io/v1beta1
+storage.k8s.io/v1
+storage.k8s.io/v1beta1
+template.openshift.io/v1
+user.openshift.io/v1
+v1
+$ oc get pods --v=8
+oc get pods --v=8
+I1019 02:07:08.872499   11485 loader.go:359] Config loaded from file /root/.kube/config
+I1019 02:07:08.873508   11485 loader.go:359] Config loaded from file /root/.kube/config
+I1019 02:07:08.877609   11485 loader.go:359] Config loaded from file /root/.kube/config
+I1019 02:07:08.887716   11485 loader.go:359] Config loaded from file /root/.kube/config
+I1019 02:07:08.888199   11485 round_trippers.go:383] GET https://master:8443/api/v1/namespaces/myproject/pods?limit=500
+I1019 02:07:08.888228   11485 round_trippers.go:390] Request Headers:
+I1019 02:07:08.888243   11485 round_trippers.go:393]     Accept: application/json;as=Table;v=v1beta1;g=meta.k8s.io, application/json
+I1019 02:07:08.888257   11485 round_trippers.go:393]     User-Agent: oc/v1.11.0+d4cacc0 (linux/amd64) kubernetes/d4cacc0
+I1019 02:07:08.904162   11485 round_trippers.go:408] Response Status: 200 OK in 15 milliseconds
+I1019 02:07:08.904342   11485 round_trippers.go:411] Response Headers:
+I1019 02:07:08.904404   11485 round_trippers.go:414]     Cache-Control: no-store
+I1019 02:07:08.904467   11485 round_trippers.go:414]     Content-Type: application/json
+I1019 02:07:08.904531   11485 round_trippers.go:414]     Content-Length: 3046
+I1019 02:07:08.904600   11485 round_trippers.go:414]     Date: Sat, 19 Oct 2019 02:07:08 GMT
+I1019 02:07:08.904711   11485 request.go:897] Response Body: {"kind":"Table","apiVersion":"meta.k8s.io/v1beta1","metadata":{"selfLink":"/api/v1/namespaces/myproject/pods","resourceVersion":"32856"},"columnDefinitions":[{"name":"Name","type":"string","format":"name","description":"Name must be unique within a namespace. Is required when creating resources, although some resources may allow a client to request the generation of an appropriate name automatically. Name is primarily intended for creation idempotence and configuration definition. Cannot be updated. More info: http://kubernetes.io/docs/user-guide/identifiers#names","priority":0},{"name":"Ready","type":"string","format":"","description":"The aggregate readiness state of this pod for accepting traffic.","priority":0},{"name":"Status","type":"string","format":"","description":"The aggregate status of the containers in this pod.","priority":0},{"name":"Restarts","type":"integer","format":"","description":"The number of times the containers in this pod have been restarted.","priority":0},{"name":"Age","type":"stri [truncated 2022 chars]
+I1019 02:07:08.905450   11485 get.go:443] no kind is registered for the type v1beta1.Table in scheme "k8s.io/kubernetes/pkg/api/legacyscheme/scheme.go:29"
+NAME                   READY     STATUS    RESTARTS   AGE
+my-two-container-pod   2/2       Running   0          1m
+$ oc get pods --v=8
+I1019 02:07:09.071316   11496 loader.go:359] Config loaded from file /root/.kube/config
+I1019 02:07:09.072325   11496 loader.go:359] Config loaded from file /root/.kube/config
+I1019 02:07:09.081275   11496 loader.go:359] Config loaded from file /root/.kube/config
+I1019 02:07:09.089919   11496 loader.go:359] Config loaded from file /root/.kube/config
+I1019 02:07:09.090257   11496 round_trippers.go:383] GET https://master:8443/api/v1/namespaces/myproject/pods?limit=500
+I1019 02:07:09.090295   11496 round_trippers.go:390] Request Headers:
+I1019 02:07:09.090308   11496 round_trippers.go:393]     Accept: application/json;as=Table;v=v1beta1;g=meta.k8s.io, application/json
+I1019 02:07:09.090315   11496 round_trippers.go:393]     User-Agent: oc/v1.11.0+d4cacc0 (linux/amd64) kubernetes/d4cacc0
+I1019 02:07:09.102445   11496 round_trippers.go:408] Response Status: 200 OK in 12 milliseconds
+I1019 02:07:09.102515   11496 round_trippers.go:411] Response Headers:
+I1019 02:07:09.102524   11496 round_trippers.go:414]     Date: Sat, 19 Oct 2019 02:07:09 GMT
+I1019 02:07:09.102531   11496 round_trippers.go:414]     Cache-Control: no-store
+I1019 02:07:09.102537   11496 round_trippers.go:414]     Content-Type: application/json
+I1019 02:07:09.102544   11496 round_trippers.go:414]     Content-Length: 3046
+I1019 02:07:09.102591   11496 request.go:897] Response Body: {"kind":"Table","apiVersion":"meta.k8s.io/v1beta1","metadata":{"selfLink":"/api/v1/namespaces/myproject/pods","resourceVersion":"32856"},"columnDefinitions":[{"name":"Name","type":"string","format":"name","description":"Name must be unique within a namespace. Is required when creating resources, although some resources may allow a client to request the generation of an appropriate name automatically. Name is primarily intended for creation idempotence and configuration definition. Cannot be updated. More info: http://kubernetes.io/docs/user-guide/identifiers#names","priority":0},{"name":"Ready","type":"string","format":"","description":"The aggregate readiness state of this pod for accepting traffic.","priority":0},{"name":"Status","type":"string","format":"","description":"The aggregate status of the containers in this pod.","priority":0},{"name":"Restarts","type":"integer","format":"","description":"The number of times the containers in this pod have been restarted.","priority":0},{"name":"Age","type":"stri [truncated 2022 chars]
+I1019 02:07:09.103263   11496 get.go:443] no kind is registered for the type v1beta1.Table in scheme "k8s.io/kubernetes/pkg/api/legacyscheme/scheme.go:29"
+NAME                   READY     STATUS    RESTARTS   AGE
+my-two-container-pod   2/2       Running   0          1m
+
+
+----------------------------------------------------
+
+$ oc proxy --port=8001
+Starting to serve on 127.0.0.1:8001
+
+NEW Terminal==>
+
+$ curl -X GET http://localhost:8001
+{
+  "paths": [
+    "/api",
+    "/api/v1",
+    "/apis",
+    "/apis/",
+    "/apis/admissionregistration.k8s.io",
+    "/apis/admissionregistration.k8s.io/v1beta1",
+    "/apis/apiextensions.k8s.io",
+    "/apis/apiextensions.k8s.io/v1beta1",
+    "/apis/apiregistration.k8s.io",
+    "/apis/apiregistration.k8s.io/v1",
+    "/apis/apiregistration.k8s.io/v1beta1",
+    "/apis/apps",
+    "/apis/apps.openshift.io",
+    "/apis/apps.openshift.io/v1",
+    "/apis/apps/v1",
+    "/apis/apps/v1beta1",
+    "/apis/apps/v1beta2",
+    "/apis/authentication.k8s.io",
+    "/apis/authentication.k8s.io/v1",
+    "/apis/authentication.k8s.io/v1beta1",
+    "/apis/authorization.k8s.io",
+    "/apis/authorization.k8s.io/v1",
+    "/apis/authorization.k8s.io/v1beta1",
+    "/apis/authorization.openshift.io",
+    "/apis/authorization.openshift.io/v1",
+    "/apis/automationbroker.io",
+    "/apis/automationbroker.io/v1alpha1",
+    "/apis/autoscaling",
+    "/apis/autoscaling/v1",
+    "/apis/autoscaling/v2beta1",
+    "/apis/batch",
+    "/apis/batch/v1",
+    "/apis/batch/v1beta1",
+    "/apis/build.openshift.io",
+    "/apis/build.openshift.io/v1",
+    "/apis/certificates.k8s.io",
+    "/apis/certificates.k8s.io/v1beta1",
+    "/apis/events.k8s.io",
+    "/apis/events.k8s.io/v1beta1",
+    "/apis/extensions",
+    "/apis/extensions/v1beta1",
+    "/apis/image.openshift.io",
+    "/apis/image.openshift.io/v1",
+    "/apis/monitoring.coreos.com",
+    "/apis/monitoring.coreos.com/v1",
+    "/apis/network.openshift.io",
+    "/apis/network.openshift.io/v1",
+    "/apis/networking.k8s.io",
+    "/apis/networking.k8s.io/v1",
+    "/apis/oauth.openshift.io",
+    "/apis/oauth.openshift.io/v1",
+    "/apis/policy",
+    "/apis/policy/v1beta1",
+    "/apis/project.openshift.io",
+    "/apis/project.openshift.io/v1",
+    "/apis/quota.openshift.io",
+    "/apis/quota.openshift.io/v1",
+    "/apis/rbac.authorization.k8s.io",
+    "/apis/rbac.authorization.k8s.io/v1",
+    "/apis/rbac.authorization.k8s.io/v1beta1",
+    "/apis/route.openshift.io",
+    "/apis/route.openshift.io/v1",
+    "/apis/scheduling.k8s.io",
+    "/apis/scheduling.k8s.io/v1beta1",
+    "/apis/security.openshift.io",
+    "/apis/security.openshift.io/v1",
+    "/apis/servicecatalog.k8s.io",
+    "/apis/servicecatalog.k8s.io/v1beta1",
+    "/apis/storage.k8s.io",
+    "/apis/storage.k8s.io/v1",
+    "/apis/storage.k8s.io/v1beta1",
+    "/apis/template.openshift.io",
+    "/apis/template.openshift.io/v1",
+    "/apis/user.openshift.io",
+    "/apis/user.openshift.io/v1",
+    "/healthz",
+    "/healthz/autoregister-completion",
+    "/healthz/etcd",
+    "/healthz/log",
+    "/healthz/ping",
+    "/healthz/poststarthook/apiservice-openapi-controller",
+    "/healthz/poststarthook/apiservice-registration-controller",
+    "/healthz/poststarthook/apiservice-status-available-controller",
+    "/healthz/poststarthook/authorization.openshift.io-bootstrapclusterroles",
+    "/healthz/poststarthook/authorization.openshift.io-ensureopenshift-infra",
+    "/healthz/poststarthook/bootstrap-controller",
+    "/healthz/poststarthook/ca-registration",
+    "/healthz/poststarthook/generic-apiserver-start-informers",
+    "/healthz/poststarthook/image.openshift.io-apiserver-caches",
+    "/healthz/poststarthook/kube-apiserver-autoregistration",
+    "/healthz/poststarthook/oauth.openshift.io-startoauthclientsbootstrapping",
+    "/healthz/poststarthook/openshift.io-restmapperupdater",
+    "/healthz/poststarthook/openshift.io-startinformers",
+    "/healthz/poststarthook/openshift.io-webconsolepublicurl",
+    "/healthz/poststarthook/project.openshift.io-projectauthorizationcache",
+    "/healthz/poststarthook/project.openshift.io-projectcache",
+    "/healthz/poststarthook/quota.openshift.io-clusterquotamapping",
+    "/healthz/poststarthook/rbac/bootstrap-roles",
+    "/healthz/poststarthook/scheduling/bootstrap-system-priority-classes",
+    "/healthz/poststarthook/security.openshift.io-bootstrapscc",
+    "/healthz/poststarthook/start-apiextensions-controllers",
+    "/healthz/poststarthook/start-apiextensions-informers",
+    "/healthz/poststarthook/start-kube-aggregator-informers",
+    "/healthz/ready",
+    "/metrics",
+    "/oapi",
+    "/oapi/v1",
+    "/openapi/v2",
+    "/swagger-2.0.0.json",
+    "/swagger-2.0.0.pb-v1",
+    "/swagger-2.0.0.pb-v1.gz",
+    "/swagger.json",
+    "/swaggerapi",
+    "/version",
+    "/version/openshift"
+  ]
+  
+  ----------------------------------------------------
+  
+  $ curl localhost:8001/openapi/v2 | more
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0{
+  "swagger": "2.0",
+  "info": {
+   "description": "OpenShift provides builds, application lifecycle, image content management,\nand administrative policy
+ on top of Kubernetes. The API allows consistent\nmanagement of those objects.\n\nAll API operations are authenticated vi
+a an Authorization\tbearer token that\nis provided for service accounts as a generated secret (in JWT form) or via\nthe n
+ative OAuth endpoint located at /oauth/authorize. Core infrastructure\ncomponents may use client certificates that requir
+e no authentication.\n\nAll API operations return a 'resourceVersion' string that represents the\nversion of the object i
+n the underlying storage. The standard LIST operation\nperforms a snapshot read of the underlying objects, returning a re
+sourceVersion\nrepresenting a consistent version of the listed objects. The WATCH operation\nallows all updates to a set
+of objects after the provided resourceVersion to\nbe observed by a client. By listing and beginning a watch from the retu
+rned\nresourceVersion, clients may observe a consistent view of the state of one\nor more objects. Note that WATCH always
+--More--et by the server when a graceful deletion is requested by the user, and is not directly settable by a client. The resour
+
+
+----------------------------------------------------
+
+$ curl -X GET http://localhost:8001/api/v1/pods | more
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0{
+  "kind": "PodList",
+  "apiVersion": "v1",
+  "metadata": {
+    "selfLink": "/api/v1/pods",
+    "resourceVersion": "33386"
+  },
+  "items": [
+    {
+      "metadata": {
+        "name": "docker-registry-1-kqn6w",
+        "generateName": "docker-registry-1-",
+        
+
+----------------------------------------------------
+
+$ curl -X GET http://localhost:8001/api/v1/pods | jq .items[].metadata.name
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  220k    0  220k    0     0  13.6M      0 --:--:-- --:--:-- --:--:-- 14.3M
+"docker-registry-1-kqn6w"
+"registry-console-1-4m67b"
+"router-1-zbg5t"
+"apiserver-lkhgg"
+"controller-manager-v6kd7"
+"master-api-master"
+"master-controllers-master"
+"master-etcd-master"
+"my-two-container-pod"
+"asb-1-deploy"
+"console-5677c7c58d-rw5pq"
+"alertmanager-main-0"
+"alertmanager-main-1"
+"alertmanager-main-2"
+"cluster-monitoring-operator-6465f8fbc7-c49sv"
+"grafana-6b9f85786f-c9j8h"
+"kube-state-metrics-7449d589bc-szbcn"
+"node-exporter-zz776"
+"prometheus-k8s-0"
+"prometheus-k8s-1"
+"prometheus-operator-6644b8cd54-7s2x9"
+"sync-pq7lj"
+"ovs-bj4bq"
+"sdn-rpdn5"
+"apiserver-8skbg"
+"webconsole-7df4f9f689-gwqdh"
+
+
+----------------------------------------------------
+
+$ curl -X GET http://localhost:8001/api/v1/namespaces/myproject/pods
+{
+  "kind": "PodList",
+  "apiVersion": "v1",
+  "metadata": {
+    "selfLink": "/api/v1/namespaces/myproject/pods",
+    "resourceVersion": "33506"
+  },
+  "items": [
+    {
+      "metadata": {
+        "name": "my-two-container-pod",
+        "namespace": "myproject",
+        "selfLink": "/api/v1/namespaces/myproject/pods/my-two-container-pod",
+        "uid": "f29d1b73-f214-11e9-88fd-0242ac110011",
+        "resourceVersion": "32686",
+        "creationTimestamp": "2019-10-19T02:05:39Z",
+        "labels": {
+          "environment": "dev"
+        },
+        "annotations": {
+          "openshift.io/scc": "anyuid"
+        }
+      },
+      "spec": {
+        "volumes": [
+          {
+            "name": "default-token-bzx8z",
+            "secret": {
+              "secretName": "default-token-bzx8z",
+              "defaultMode": 420
+            }
+          }
+        ],
+        "containers": [
+          {
+            "name": "server",
+            "image": "nginx:1.13-alpine",
+            "ports": [
+              {
+                "containerPort": 80,
+                "protocol": "TCP"
+              }
+            ],
+            "resources": {
+
+            },
+            "volumeMounts": [
+              {
+                "name": "default-token-bzx8z",
+                "readOnly": true,
+                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+              }
+            ],
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "imagePullPolicy": "IfNotPresent",
+            "securityContext": {
+              "capabilities": {
+                "drop": [
+                  "MKNOD"
+                ]
+              }
+            }
+          },
+          {
+            "name": "side-car",
+            "image": "alpine:latest",
+            "command": [
+              "/usr/bin/tail",
+              "-f",
+              "/dev/null"
+            ],
+            "resources": {
+
+            },
+            "volumeMounts": [
+              {
+                "name": "default-token-bzx8z",
+                "readOnly": true,
+                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+              }
+            ],
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "imagePullPolicy": "Always",
+            "securityContext": {
+              "capabilities": {
+                "drop": [
+                  "MKNOD"
+                ]
+              }
+            }
+          }
+        ],
+        "restartPolicy": "Never",
+        "terminationGracePeriodSeconds": 30,
+        "dnsPolicy": "ClusterFirst",
+        "nodeSelector": {
+          "node-role.kubernetes.io/compute": "true"
+        },
+        "serviceAccountName": "default",
+        "serviceAccount": "default",
+        "nodeName": "master",
+        "securityContext": {
+          "seLinuxOptions": {
+            "level": "s0:c18,c7"
+          }
+        },
+        "imagePullSecrets": [
+          {
+            "name": "default-dockercfg-jj67x"
+          }
+        ],
+        "schedulerName": "default-scheduler",
+        "priority": 0
+      },
+      "status": {
+        "phase": "Running",
+        "conditions": [
+          {
+            "type": "Initialized",
+            "status": "True",
+            "lastProbeTime": null,
+            "lastTransitionTime": "2019-10-19T02:05:39Z"
+          },
+          {
+            "type": "Ready",
+            "status": "True",
+            "lastProbeTime": null,
+            "lastTransitionTime": "2019-10-19T02:05:48Z"
+          },
+          {
+            "type": "ContainersReady",
+            "status": "True",
+            "lastProbeTime": null,
+            "lastTransitionTime": null
+          },
+          {
+            "type": "PodScheduled",
+            "status": "True",
+            "lastProbeTime": null,
+            "lastTransitionTime": "2019-10-19T02:05:39Z"
+          }
+        ],
+        "hostIP": "172.17.0.17",
+        "podIP": "10.128.0.23",
+        "startTime": "2019-10-19T02:05:39Z",
+        "containerStatuses": [
+          {
+            "name": "server",
+            "state": {
+              "running": {
+                "startedAt": "2019-10-19T02:05:45Z"
+              }
+            },
+            "lastState": {
+
+            },
+            "ready": true,
+            "restartCount": 0,
+            "image": "docker.io/nginx:1.13-alpine",
+            "imageID": "docker-pullable://docker.io/nginx@sha256:9d46fd628d54ebe1633ee3cf0fe2acfcc419cfae541c63056530e39cd5620366",
+            "containerID": "docker://13a586db827b32292cdb9a0786ebf330c7e50c9aad70c832946c47557060f505"
+          },
+          {
+            "name": "side-car",
+            "state": {
+              "running": {
+                "startedAt": "2019-10-19T02:05:48Z"
+              }
+            },
+            "lastState": {
+
+            },
+            "ready": true,
+            "restartCount": 0,
+            "image": "docker.io/alpine:latest",
+            "imageID": "docker-pullable://docker.io/alpine@sha256:72c42ed48c3a2db31b7dafe17d275b634664a708d901ec9fd57b1529280f01fb",
+            "containerID": "docker://8e4bc69496d10579fcc117f7b40dd17e0392f742dd443b37bc7c10e9441b772a"
+          }
+        ],
+        "qosClass": "BestEffort"
+      }
+    }
+  ]
+}$
+
+
+----------------------------------------------------
+
+$ curl -X GET http://localhost:8001/api/v1/namespaces/myproject/pods/my-two-container-pod
+{
+  "kind": "Pod",  "apiVersion": "v1",
+  "metadata": {
+    "name": "my-two-container-pod",
+    "namespace": "myproject",
+    "selfLink": "/api/v1/namespaces/myproject/pods/my-two-container-pod",
+    "uid": "f29d1b73-f214-11e9-88fd-0242ac110011",
+    "resourceVersion": "32686",
+    "creationTimestamp": "2019-10-19T02:05:39Z",
+    "labels": {
+      "environment": "dev"
+    },
+    "annotations": {
+      "openshift.io/scc": "anyuid"
+    }
+  },
+  "spec": {
+    "volumes": [
+      {
+        "name": "default-token-bzx8z",
+        "secret": {
+          "secretName": "default-token-bzx8z",
+          "defaultMode": 420
+        }
+      }
+    ],
+    "containers": [
+      {
+        "name": "server",
+        "image": "nginx:1.13-alpine",
+        "ports": [
+          {
+            "containerPort": 80,
+            "protocol": "TCP"
+          }
+        ],
+        "resources": {
+
+        },
+        "volumeMounts": [
+          {
+            "name": "default-token-bzx8z",
+            "readOnly": true,
+            "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+          }
+        ],
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "imagePullPolicy": "IfNotPresent",
+        "securityContext": {
+          "capabilities": {
+            "drop": [
+              "MKNOD"
+            ]
+          }
+        }
+      },
+      {
+        "name": "side-car",
+        "image": "alpine:latest",
+        "command": [
+          "/usr/bin/tail",
+          "-f",
+          "/dev/null"
+        ],
+        "resources": {
+
+        },
+        "volumeMounts": [
+          {
+            "name": "default-token-bzx8z",
+            "readOnly": true,
+            "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+          }
+        ],
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "imagePullPolicy": "Always",
+        "securityContext": {
+          "capabilities": {
+            "drop": [
+              "MKNOD"
+            ]
+          }
+        }
+      }
+    ],
+    "restartPolicy": "Never",
+    "terminationGracePeriodSeconds": 30,
+    "dnsPolicy": "ClusterFirst",
+    "nodeSelector": {
+      "node-role.kubernetes.io/compute": "true"
+    },
+    "serviceAccountName": "default",
+    "serviceAccount": "default",
+    "nodeName": "master",
+    "securityContext": {
+      "seLinuxOptions": {
+        "level": "s0:c18,c7"
+      }
+    },
+    "imagePullSecrets": [
+      {
+        "name": "default-dockercfg-jj67x"
+      }
+    ],
+    "schedulerName": "default-scheduler",
+    "priority": 0
+  },
+  "status": {
+    "phase": "Running",
+    "conditions": [
+      {
+        "type": "Initialized",
+        "status": "True",
+        "lastProbeTime": null,
+        "lastTransitionTime": "2019-10-19T02:05:39Z"
+      },
+      {
+        "type": "Ready",
+        "status": "True",
+        "lastProbeTime": null,
+        "lastTransitionTime": "2019-10-19T02:05:48Z"
+      },
+      {
+        "type": "ContainersReady",
+        "status": "True",
+        "lastProbeTime": null,
+        "lastTransitionTime": null
+      },
+      {
+        "type": "PodScheduled",
+        "status": "True",
+        "lastProbeTime": null,
+        "lastTransitionTime": "2019-10-19T02:05:39Z"
+      }
+    ],
+    "hostIP": "172.17.0.17",
+    "podIP": "10.128.0.23",
+    "startTime": "2019-10-19T02:05:39Z",
+    "containerStatuses": [
+      {
+        "name": "server",
+        "state": {
+          "running": {
+            "startedAt": "2019-10-19T02:05:45Z"
+          }
+        },
+        "lastState": {
+
+        },
+        "ready": true,
+        "restartCount": 0,
+        "image": "docker.io/nginx:1.13-alpine",
+        "imageID": "docker-pullable://docker.io/nginx@sha256:9d46fd628d54ebe1633ee3cf0fe2acfcc419cfae541c63056530e39cd5620366",
+        "containerID": "docker://13a586db827b32292cdb9a0786ebf330c7e50c9aad70c832946c47557060f505"
+      },
+      {
+        "name": "side-car",
+        "state": {
+          "running": {
+            "startedAt": "2019-10-19T02:05:48Z"
+          }
+        },
+        "lastState": {
+
+        },
+        "ready": true,
+        "restartCount": 0,
+        "image": "docker.io/alpine:latest",
+        "imageID": "docker-pullable://docker.io/alpine@sha256:72c42ed48c3a2db31b7dafe17d275b634664a708d901ec9fd57b1529280f01fb",
+        "containerID": "docker://8e4bc69496d10579fcc117f7b40dd17e0392f742dd443b37bc7c10e9441b772a"
+      }
+    ],
+    "qosClass": "BestEffort"
+  }
+}$
+
+
+----------------------------------------------------
+
+$ oc get pods my-two-container-pod --export -o json > podmanifest.json
+$ sed -i 's|nginx:1.13-alpine|nginx:1.14-alpine|g' podmanifest.json
+$ curl -X PUT http://localhost:8001/api/v1/namespaces/myproject/pods/my-two-container-pod -H "Content-type: application/json" -d @podmanifest.json
+{  "kind": "Pod",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "my-two-container-pod",
+    "namespace": "myproject",
+    "selfLink": "/api/v1/namespaces/myproject/pods/my-two-container-pod",
+    "uid": "f29d1b73-f214-11e9-88fd-0242ac110011",
+    "resourceVersion": "34233",
+    "creationTimestamp": "2019-10-19T02:05:39Z",
+    "labels": {
+      "environment": "dev"
+    },
+    "annotations": {
+      "openshift.io/scc": "anyuid"
+    }
+  },
+  "spec": {
+    "volumes": [
+      {
+        "name": "default-token-bzx8z",
+        "secret": {
+          "secretName": "default-token-bzx8z",
+          "defaultMode": 420
+        }
+      }
+    ],
+    "containers": [
+      {
+        "name": "server",
+        "image": "nginx:1.14-alpine",
+        "ports": [
+          {
+            "containerPort": 80,
+            "protocol": "TCP"
+          }
+        ],
+        "resources": {
+
+        },
+        "volumeMounts": [
+          {
+            "name": "default-token-bzx8z",
+            "readOnly": true,
+            "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+          }
+        ],
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "imagePullPolicy": "IfNotPresent",
+        "securityContext": {
+          "capabilities": {
+            "drop": [
+              "MKNOD"
+            ]
+          }
+        }
+      },
+      {
+        "name": "side-car",
+        "image": "alpine:latest",
+        "command": [
+          "/usr/bin/tail",
+          "-f",
+          "/dev/null"
+        ],
+        "resources": {
+
+        },
+        "volumeMounts": [
+          {
+            "name": "default-token-bzx8z",
+            "readOnly": true,
+            "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+          }
+        ],
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "imagePullPolicy": "Always",
+        "securityContext": {
+          "capabilities": {
+            "drop": [
+              "MKNOD"
+            ]
+          }
+        }
+      }
+    ],
+    "restartPolicy": "Never",
+    "terminationGracePeriodSeconds": 30,
+    "dnsPolicy": "ClusterFirst",
+    "nodeSelector": {
+      "node-role.kubernetes.io/compute": "true"
+    },
+    "serviceAccountName": "default",
+    "serviceAccount": "default",
+    "nodeName": "master",
+    "securityContext": {
+      "seLinuxOptions": {
+        "level": "s0:c18,c7"
+      }
+    },
+    "imagePullSecrets": [
+      {
+        "name": "default-dockercfg-jj67x"
+      }
+    ],
+    "schedulerName": "default-scheduler",
+    "priority": 0
+  },
+  "status": {
+    "phase": "Running",
+    "conditions": [
+      {
+        "type": "Initialized",
+        "status": "True",
+        "lastProbeTime": null,
+        "lastTransitionTime": "2019-10-19T02:05:39Z"
+      },
+      {
+        "type": "Ready",
+        "status": "True",
+        "lastProbeTime": null,
+        "lastTransitionTime": "2019-10-19T02:05:48Z"
+      },
+      {
+        "type": "ContainersReady",
+        "status": "True",
+        "lastProbeTime": null,
+        "lastTransitionTime": null
+      },
+      {
+        "type": "PodScheduled",
+        "status": "True",
+        "lastProbeTime": null,
+        "lastTransitionTime": "2019-10-19T02:05:39Z"
+      }
+    ],
+    "hostIP": "172.17.0.17",
+    "podIP": "10.128.0.23",
+    "startTime": "2019-10-19T02:05:39Z",
+    "containerStatuses": [
+      {
+        "name": "server",
+        "state": {
+          "running": {
+            "startedAt": "2019-10-19T02:05:45Z"
+          }
+        },
+        "lastState": {
+
+        },
+        "ready": true,
+        "restartCount": 0,
+        "image": "docker.io/nginx:1.13-alpine",
+        "imageID": "docker-pullable://docker.io/nginx@sha256:9d46fd628d54ebe1633ee3cf0fe2acfcc419cfae541c63056530e39cd5620366",
+        "containerID": "docker://13a586db827b32292cdb9a0786ebf330c7e50c9aad70c832946c47557060f505"
+      },
+      {
+        "name": "side-car",
+        "state": {
+          "running": {
+            "startedAt": "2019-10-19T02:05:48Z"
+          }
+        },
+        "lastState": {
+
+        },
+        "ready": true,
+        "restartCount": 0,
+        "image": "docker.io/alpine:latest",
+        "imageID": "docker-pullable://docker.io/alpine@sha256:72c42ed48c3a2db31b7dafe17d275b634664a708d901ec9fd57b1529280f01fb",
+        "containerID": "docker://8e4bc69496d10579fcc117f7b40dd17e0392f742dd443b37bc7c10e9441b772a"
+      }
+    ],
+    "qosClass": "BestEffort"
+  }
+}$ curl -X PATCH http://localhost:8001/api/v1/namespaces/myproject/pods/my-two-container-pod -H "Content-type: applicatio/strategic-merge-patch+json" -d '{"spec":{"containers":[{"name": "server","image":"nginx:1.15-alpine"}]}}'
+{
+  "kind": "Pod",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "my-two-container-pod",
+    "namespace": "myproject",
+    "selfLink": "/api/v1/namespaces/myproject/pods/my-two-container-pod",
+    "uid": "f29d1b73-f214-11e9-88fd-0242ac110011",
+    "resourceVersion": "34244",
+    "creationTimestamp": "2019-10-19T02:05:39Z",
+    "labels": {
+      "environment": "dev"
+    },
+    "annotations": {
+      "openshift.io/scc": "anyuid"
+    }
+  },
+  "spec": {
+    "volumes": [
+      {
+        "name": "default-token-bzx8z",
+        "secret": {
+          "secretName": "default-token-bzx8z",
+          "defaultMode": 420
+        }
+      }
+    ],
+    "containers": [
+      {
+        "name": "server",
+        "image": "nginx:1.15-alpine",
+        "ports": [
+          {
+            "containerPort": 80,
+            "protocol": "TCP"
+          }
+        ],
+        "resources": {
+
+        },
+        "volumeMounts": [
+          {
+            "name": "default-token-bzx8z",
+            "readOnly": true,
+            "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+          }
+        ],
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "imagePullPolicy": "IfNotPresent",
+        "securityContext": {
+          "capabilities": {
+            "drop": [
+              "MKNOD"
+            ]
+          }
+        }
+      },
+      {
+        "name": "side-car",
+        "image": "alpine:latest",
+        "command": [
+          "/usr/bin/tail",
+          "-f",
+          "/dev/null"
+        ],
+        "resources": {
+
+        },
+        "volumeMounts": [
+          {
+            "name": "default-token-bzx8z",
+            "readOnly": true,
+            "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+          }
+        ],
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "imagePullPolicy": "Always",
+        "securityContext": {
+          "capabilities": {
+            "drop": [
+              "MKNOD"
+            ]
+          }
+        }
+      }
+    ],
+    "restartPolicy": "Never",
+    "terminationGracePeriodSeconds": 30,
+    "dnsPolicy": "ClusterFirst",
+    "nodeSelector": {
+      "node-role.kubernetes.io/compute": "true"
+    },
+    "serviceAccountName": "default",
+    "serviceAccount": "default",
+    "nodeName": "master",
+    "securityContext": {
+      "seLinuxOptions": {
+        "level": "s0:c18,c7"
+      }
+    },
+    "imagePullSecrets": [
+      {
+        "name": "default-dockercfg-jj67x"
+      }
+    ],
+    "schedulerName": "default-scheduler",
+    "priority": 0
+  },
+  "status": {
+    "phase": "Running",
+    "conditions": [
+      {
+        "type": "Initialized",
+        "status": "True",
+        "lastProbeTime": null,
+        "lastTransitionTime": "2019-10-19T02:05:39Z"
+      },
+      {
+        "type": "Ready",
+        "status": "True",
+        "lastProbeTime": null,
+        "lastTransitionTime": "2019-10-19T02:05:48Z"
+      },
+      {
+        "type": "ContainersReady",
+        "status": "True",
+        "lastProbeTime": null,
+        "lastTransitionTime": null
+      },
+      {
+        "type": "PodScheduled",
+        "status": "True",
+        "lastProbeTime": null,
+        "lastTransitionTime": "2019-10-19T02:05:39Z"
+      }
+    ],
+    "hostIP": "172.17.0.17",
+    "podIP": "10.128.0.23",
+    "startTime": "2019-10-19T02:05:39Z",
+    "containerStatuses": [
+      {
+        "name": "server",
+        "state": {
+          "running": {
+            "startedAt": "2019-10-19T02:05:45Z"
+          }
+        },
+        "lastState": {
+
+        },
+        "ready": true,
+        "restartCount": 0,
+        "image": "docker.io/nginx:1.13-alpine",
+        "imageID": "docker-pullable://docker.io/nginx@sha256:9d46fd628d54ebe1633ee3cf0fe2acfcc419cfae541c63056530e39cd5620366",
+        "containerID": "docker://13a586db827b32292cdb9a0786ebf330c7e50c9aad70c832946c47557060f505"
+      },
+      {
+        "name": "side-car",
+        "state": {
+          "running": {
+            "startedAt": "2019-10-19T02:05:48Z"
+          }
+        },
+        "lastState": {
+
+        },
+        "ready": true,
+        "restartCount": 0,
+        "image": "docker.io/alpine:latest",
+        "imageID": "docker-pullable://docker.io/alpine@sha256:72c42ed48c3a2db31b7dafe17d275b634664a708d901ec9fd57b1529280f01fb",
+        "containerID": "docker://8e4bc69496d10579fcc117f7b40dd17e0392f742dd443b37bc7c10e9441b772a"
+      }
+    ],
+    "qosClass": "BestEffort"
+  }
+}$ curl -X DELETE http://localhost:8001/api/v1/namespaces/myproject/pods/my-two-container-pod
+{
+  "kind": "Pod",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "my-two-container-pod",
+    "namespace": "myproject",
+    "selfLink": "/api/v1/namespaces/myproject/pods/my-two-container-pod",
+    "uid": "f29d1b73-f214-11e9-88fd-0242ac110011",
+    "resourceVersion": "34254",
+    "creationTimestamp": "2019-10-19T02:05:39Z",
+    "deletionTimestamp": "2019-10-19T02:19:30Z",
+    "deletionGracePeriodSeconds": 30,
+    "labels": {
+      "environment": "dev"
+    },
+    "annotations": {
+      "openshift.io/scc": "anyuid"
+    }
+  },
+  "spec": {
+    "volumes": [
+      {
+        "name": "default-token-bzx8z",
+        "secret": {
+          "secretName": "default-token-bzx8z",
+          "defaultMode": 420
+        }
+      }
+    ],
+    "containers": [
+      {
+        "name": "server",
+        "image": "nginx:1.15-alpine",
+        "ports": [
+          {
+            "containerPort": 80,
+            "protocol": "TCP"
+          }
+        ],
+        "resources": {
+
+        },
+        "volumeMounts": [
+          {
+            "name": "default-token-bzx8z",
+            "readOnly": true,
+            "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+          }
+        ],
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "imagePullPolicy": "IfNotPresent",
+        "securityContext": {
+          "capabilities": {
+            "drop": [
+              "MKNOD"
+            ]
+          }
+        }
+      },
+      {
+        "name": "side-car",
+        "image": "alpine:latest",
+        "command": [
+          "/usr/bin/tail",
+          "-f",
+          "/dev/null"
+        ],
+        "resources": {
+
+        },
+        "volumeMounts": [
+          {
+            "name": "default-token-bzx8z",
+            "readOnly": true,
+            "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+          }
+        ],
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "imagePullPolicy": "Always",
+        "securityContext": {
+          "capabilities": {
+            "drop": [
+              "MKNOD"
+            ]
+          }
+        }
+      }
+    ],
+    "restartPolicy": "Never",
+    "terminationGracePeriodSeconds": 30,
+    "dnsPolicy": "ClusterFirst",
+    "nodeSelector": {
+      "node-role.kubernetes.io/compute": "true"
+    },
+    "serviceAccountName": "default",
+    "serviceAccount": "default",
+    "nodeName": "master",
+    "securityContext": {
+      "seLinuxOptions": {
+        "level": "s0:c18,c7"
+      }
+    },
+    "imagePullSecrets": [
+      {
+        "name": "default-dockercfg-jj67x"
+      }
+    ],
+    "schedulerName": "default-scheduler",
+    "priority": 0
+  },
+  "status": {
+    "phase": "Running",
+    "conditions": [
+      {
+        "type": "Initialized",
+        "status": "True",
+        "lastProbeTime": null,
+        "lastTransitionTime": "2019-10-19T02:05:39Z"
+      },
+      {
+        "type": "Ready",
+        "status": "True",
+        "lastProbeTime": null,
+        "lastTransitionTime": "2019-10-19T02:05:48Z"
+      },
+      {
+        "type": "ContainersReady",
+        "status": "True",
+        "lastProbeTime": null,
+        "lastTransitionTime": null
+      },
+      {
+        "type": "PodScheduled",
+        "status": "True",
+        "lastProbeTime": null,
+        "lastTransitionTime": "2019-10-19T02:05:39Z"
+      }
+    ],
+    "hostIP": "172.17.0.17",
+    "podIP": "10.128.0.23",
+    "startTime": "2019-10-19T02:05:39Z",
+    "containerStatuses": [
+      {
+        "name": "server",
+        "state": {
+          "running": {
+            "startedAt": "2019-10-19T02:19:00Z"
+          }
+        },
+        "lastState": {
+          "terminated": {
+            "exitCode": 0,
+            "reason": "Completed",
+            "startedAt": "2019-10-19T02:05:45Z",
+            "finishedAt": "2019-10-19T02:18:55Z",
+            "containerID": "docker://13a586db827b32292cdb9a0786ebf330c7e50c9aad70c832946c47557060f505"
+          }
+        },
+        "ready": true,
+        "restartCount": 1,
+        "image": "docker.io/nginx:1.14-alpine",
+        "imageID": "docker-pullable://docker.io/nginx@sha256:485b610fefec7ff6c463ced9623314a04ed67e3945b9c08d7e53a47f6d108dc7",
+        "containerID": "docker://c4fce1a60aa0494950e2313f23c26368f4b1f6c374731d59782ebcad54f2fa4b"
+      },
+      {
+        "name": "side-car",
+        "state": {
+          "running": {
+            "startedAt": "2019-10-19T02:05:48Z"
+          }
+        },
+        "lastState": {
+
+        },
+        "ready": true,
+        "restartCount": 0,
+        "image": "docker.io/alpine:latest",
+        "imageID": "docker-pullable://docker.io/alpine@sha256:72c42ed48c3a2db31b7dafe17d275b634664a708d901ec9fd57b1529280f01fb",
+        "containerID": "docker://8e4bc69496d10579fcc117f7b40dd17e0392f742dd443b37bc7c10e9441b772a"
+      }
+    ],
+    "qosClass": "BestEffort"
+  }
+}$
+            }
+            
+
+----------------------------------------------------
+
+$ oc get pods
+NAME                   READY     STATUS        RESTARTS   AGE
+my-two-container-pod   2/2       Terminating   2          13m
+$ curl -X GET http://localhost:8001/api/v1/namespaces/myproject/pods/my-two-container-pod
+{  "kind": "Pod",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "my-two-container-pod",
+    "namespace": "myproject",
+    "selfLink": "/api/v1/namespaces/myproject/pods/my-two-container-pod",
+    "uid": "f29d1b73-f214-11e9-88fd-0242ac110011",
+    "resourceVersion": "34325",
+    "creationTimestamp": "2019-10-19T02:05:39Z",
+    "deletionTimestamp": "2019-10-19T02:19:30Z",
+    "deletionGracePeriodSeconds": 30,
+    "labels": {
+      "environment": "dev"
+    },
+    "annotations": {
+      "openshift.io/scc": "anyuid"
+    }
+  },
+  "spec": {
+    "volumes": [
+      {
+        "name": "default-token-bzx8z",
+        "secret": {
+          "secretName": "default-token-bzx8z",
+          "defaultMode": 420
+        }
+      }
+    ],
+    "containers": [
+      {
+        "name": "server",
+        "image": "nginx:1.15-alpine",
+        "ports": [
+          {
+            "containerPort": 80,
+            "protocol": "TCP"
+          }
+        ],
+        "resources": {
+
+        },
+        "volumeMounts": [
+          {
+            "name": "default-token-bzx8z",
+            "readOnly": true,
+            "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+          }
+        ],
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "imagePullPolicy": "IfNotPresent",
+        "securityContext": {
+          "capabilities": {
+            "drop": [
+              "MKNOD"
+            ]
+          }
+        }
+      },
+      {
+        "name": "side-car",
+        "image": "alpine:latest",
+        "command": [
+          "/usr/bin/tail",
+          "-f",
+          "/dev/null"
+        ],
+        "resources": {
+
+        },
+        "volumeMounts": [
+          {
+            "name": "default-token-bzx8z",
+            "readOnly": true,
+            "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+          }
+        ],
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "imagePullPolicy": "Always",
+        "securityContext": {
+          "capabilities": {
+            "drop": [
+              "MKNOD"
+            ]
+          }
+        }
+      }
+    ],
+    "restartPolicy": "Never",
+    "terminationGracePeriodSeconds": 30,
+    "dnsPolicy": "ClusterFirst",
+    "nodeSelector": {
+      "node-role.kubernetes.io/compute": "true"
+    },
+    "serviceAccountName": "default",
+    "serviceAccount": "default",
+    "nodeName": "master",
+    "securityContext": {
+      "seLinuxOptions": {
+        "level": "s0:c18,c7"
+      }
+    },
+    "imagePullSecrets": [
+      {
+        "name": "default-dockercfg-jj67x"
+      }
+    ],
+    "schedulerName": "default-scheduler",
+    "priority": 0
+  },
+  "status": {
+    "phase": "Failed",
+    "conditions": [
+      {
+        "type": "Initialized",
+        "status": "True",
+        "lastProbeTime": null,
+        "lastTransitionTime": "2019-10-19T02:05:39Z"
+      },
+      {
+        "type": "Ready",
+        "status": "False",
+        "lastProbeTime": null,
+        "lastTransitionTime": "2019-10-19T02:19:36Z",
+        "reason": "ContainersNotReady",
+        "message": "containers with unready status: [server side-car]"
+      },
+      {
+        "type": "ContainersReady",
+        "status": "False",
+        "lastProbeTime": null,
+        "lastTransitionTime": null,
+        "reason": "ContainersNotReady",
+        "message": "containers with unready status: [server side-car]"
+      },
+      {
+        "type": "PodScheduled",
+        "status": "True",
+        "lastProbeTime": null,
+        "lastTransitionTime": "2019-10-19T02:05:39Z"
+      }
+    ],
+    "hostIP": "172.17.0.17",
+    "podIP": "10.128.0.23",
+    "startTime": "2019-10-19T02:05:39Z",
+    "containerStatuses": [
+      {
+        "name": "server",
+        "state": {
+          "terminated": {
+            "exitCode": 0,
+            "reason": "Completed",
+            "startedAt": "2019-10-19T02:19:05Z",
+            "finishedAt": "2019-10-19T02:19:05Z",
+            "containerID": "docker://1ba0f96b9bd59d5a09f811e8a86e1b48796d9a366b89410655e9872ce2054965"
+          }
+        },
+        "lastState": {
+
+        },
+        "ready": false,
+        "restartCount": 2,
+        "image": "docker.io/nginx:1.15-alpine",
+        "imageID": "docker-pullable://docker.io/nginx@sha256:57a226fb6ab6823027c0704a9346a890ffb0cacde06bc19bbc234c8720673555",
+        "containerID": "docker://1ba0f96b9bd59d5a09f811e8a86e1b48796d9a366b89410655e9872ce2054965"
+      },
+      {
+        "name": "side-car",
+        "state": {
+          "terminated": {
+            "exitCode": 137,
+            "reason": "Error",
+            "startedAt": "2019-10-19T02:05:48Z",
+            "finishedAt": "2019-10-19T02:19:35Z",
+            "containerID": "docker://8e4bc69496d10579fcc117f7b40dd17e0392f742dd443b37bc7c10e9441b772a"
+          }
+        },
+        "lastState": {
+
+        },
+        "ready": false,
+        "restartCount": 0,
+        "image": "docker.io/alpine:latest",
+        "imageID": "docker-pullable://docker.io/alpine@sha256:72c42ed48c3a2db31b7dafe17d275b634664a708d901ec9fd57b1529280f01fb",
+        "containerID": "docker://8e4bc69496d10579fcc117f7b40dd17e0392f742dd443b37bc7c10e9441b772a"
+      }
+    ],
+    "qosClass": "BestEffort"
+  }
+}$
+            "imagePullPolicy": "Always",
+            
+
+----------------------------------------------------
+
+$ oc get pods -n myproject
+No resources found.
+$ cat > replica-set.yaml <<EOF
+> apiVersion: extensions/v1beta1
+> kind: ReplicaSet> metadata:
+>   name: myfirstreplicaset
+>   namespace: myproject
+> spec:
+>   selector:
+>     matchLabels:
+>      app: myfirstapp
+>   replicas: 3
+>   template:
+>     metadata:
+>       labels:
+>         app: myfirstapp
+>     spec:
+>       containers:
+>         - name: nodejs
+>           image: openshiftkatacoda/blog-django-py
+> EOF
+$ oc apply -f replica-set.yaml
+replicaset.extensions/myfirstreplicaset created
+$ oc get pods -l app=myfirstapp --show-labels -w
+NAME                      READY     STATUS              RESTARTS   AGE       LABELS
+myfirstreplicaset-947l4   0/1       ContainerCreating   0          3s        app=myfirstapp
+myfirstreplicaset-hfb6s   0/1       ContainerCreating   0          3s        app=myfirstapp
+myfirstreplicaset-vxtl5   0/1       ContainerCreating   0          3s        app=myfirstapp
+
+myfirstreplicaset-947l4   1/1       Running   0         9s        app=myfirstapp
+myfirstreplicaset-vxtl5   1/1       Running   0         12s       app=myfirstapp
+^C$ oc delete pod -l app=myfirstapp
+pod "myfirstreplicaset-947l4" deleted
+pod "myfirstreplicaset-hfb6s" deleted
+pod "myfirstreplicaset-vxtl5" deleted
+
+
+----------------------------------------------------
+
+$ oc scale replicaset myfirstreplicaset --replicas=6
+replicaset.extensions/myfirstreplicaset scaled
+$ oc scale replicaset myfirstreplicaset --replicas=3
+replicaset.extensions/myfirstreplicaset scaled
+$ curl -X GET http://localhost:8001/apis/extensions/v1beta1/namespaces/myproject/replicasets/myfirstreplicaset/scale
+{
+  "kind": "Scale",
+  "apiVersion": "extensions/v1beta1",
+  "metadata": {
+    "name": "myfirstreplicaset",
+    "namespace": "myproject",
+    "selfLink": "/apis/extensions/v1beta1/namespaces/myproject/replicasets/myfirstreplicaset/scale",
+    "uid": "fe49e3bb-f216-11e9-88fd-0242ac110011",
+    "resourceVersion": "34612",
+    "creationTimestamp": "2019-10-19T02:20:18Z"
+  },
+  "spec": {
+    "replicas": 3
+  },
+  "status": {
+    "replicas": 3,
+    "selector": {
+      "app": "myfirstapp"
+    },
+    "targetSelector": "app=myfirstapp"
+  }
+}$ curl  -X PUT localhost:8001/apis/extensions/v1beta1/namespaces/myproject/replicasets/myfirstreplicaset/scale -H "Contet-type: application/json" -d '{"kind":"Scale","apiVersion":"extensions/v1beta1","metadata":{"name":"myfirstreplicaset","namespace":"myproject"},"spec":{"replicas":5}}'
+{
+  "kind": "Scale",
+  "apiVersion": "extensions/v1beta1",
+  "metadata": {
+    "name": "myfirstreplicaset",
+    "namespace": "myproject",
+    "selfLink": "/apis/extensions/v1beta1/namespaces/myproject/replicasets/myfirstreplicaset/scale",
+    "uid": "fe49e3bb-f216-11e9-88fd-0242ac110011",
+    "resourceVersion": "34640",
+    "creationTimestamp": "2019-10-19T02:20:18Z"
+  },
+  "spec": {
+    "replicas": 5
+  },
+  "status": {
+    "replicas": 3,
+    "selector": {
+      "app": "myfirstapp"
+    },
+    "targetSelector": "app=myfirstapp"
+  }
+}$ curl -X GET http://localhost:8001/apis/extensions/v1beta1/namespaces/myproject/replicasets/myfirstreplicaset/status
+{
+  "kind": "ReplicaSet",
+  "apiVersion": "extensions/v1beta1",
+  "metadata": {
+    "name": "myfirstreplicaset",
+    "namespace": "myproject",
+    "selfLink": "/apis/extensions/v1beta1/namespaces/myproject/replicasets/myfirstreplicaset/status",
+    "uid": "fe49e3bb-f216-11e9-88fd-0242ac110011",
+    "resourceVersion": "34651",
+    "generation": 4,
+    "creationTimestamp": "2019-10-19T02:20:18Z",
+    "labels": {
+      "app": "myfirstapp"
+    },
+    "annotations": {
+      "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"extensions/v1beta1\",\"kind\":\"ReplicaSet\",\"metadata\":{\"annotations\":{},\"name\":\"myfirstreplicaset\",\"namespace\":\"myproject\"},\"spec\":{\"replicas\":3,\"selector\":{\"matchLabels\":{\"app\":\"myfirstapp\"}},\"template\":{\"metadata\":{\"labels\":{\"app\":\"myfirstapp\"}},\"spec\":{\"containers\":[{\"image\":\"openshiftkatacoda/blog-django-py\",\"name\":\"nodejs\"}]}}}}\n"
+    }
+  },
+  "spec": {
+    "replicas": 5,
+    "selector": {
+      "matchLabels": {
+        "app": "myfirstapp"
+      }
+    },
+    "template": {
+      "metadata": {
+        "creationTimestamp": null,
+        "labels": {
+          "app": "myfirstapp"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "nodejs",
+            "image": "openshiftkatacoda/blog-django-py",
+            "resources": {
+
+            },
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "imagePullPolicy": "Always"
+          }
+        ],
+        "restartPolicy": "Always",
+        "terminationGracePeriodSeconds": 30,
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {
+
+        },
+        "schedulerName": "default-scheduler"
+      }
+    }
+  },
+  "status": {
+    "replicas": 5,
+    "fullyLabeledReplicas": 5,
+    "readyReplicas": 3,
+    "availableReplicas": 3,
+    "observedGeneration": 4
+  }
+}$
+
+
+----------------------------------------------------
+
+$ cat > finalizer-test.yaml<<EOF
+> apiVersion: extensions/v1beta1
+> kind: Deployment
+> metadata:
+>   name: finalizer-test
+>   namespace: myproject
+>   labels:
+>     app: finalizer-test
+>   finalizers:
+>     - finalizer.extensions/v1beta1
+> spec:
+>   replicas: 3
+>   template:
+>     metadata:
+>       labels:
+>         app: finalizer-test
+>     spec:
+>       containers:
+>         - name: hieveryone
+>           image: openshiftkatacoda/blog-django-py
+>           imagePullPolicy: Always
+>           ports:
+>             - name: helloworldport
+>               containerPort: 8080
+> EOF
+$ oc create -f finalizer-test.yaml
+deployment.extensions/finalizer-test created
+$ oc get deploy
+NAME             DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+finalizer-test   3         3         3            0           4s
+$ oc get replicaset
+NAME                       DESIRED   CURRENT   READY     AGE
+finalizer-test-786c7b7db   3         3         1         7s
+myfirstreplicaset          5         5         5         4m
+$ oc get pods
+NAME                             READY     STATUS              RESTARTS   AGE
+finalizer-test-786c7b7db-cbf5x   1/1       Running             0          8s
+finalizer-test-786c7b7db-nr49p   0/1       ContainerCreating   0          8s
+finalizer-test-786c7b7db-pz4tn   0/1       ContainerCreating   0          8s
+myfirstreplicaset-47g22          1/1       Running             0          3m
+myfirstreplicaset-4qnqs          1/1       Running             0          3m
+myfirstreplicaset-9mhdm          1/1       Running             0          3m
+myfirstreplicaset-tvmk2          1/1       Running             0          3m
+myfirstreplicaset-x9pdr          1/1       Running             0          3m
+$ oc delete deployment finalizer-test
+deployment.extensions "finalizer-test" deleted
+
+
+----------------------------------------------------
+
+$ oc get deployment finalizer-test -o yaml | grep 'deletionGracePeriodSeconds\|deletionTimestamp'
+  deletionGracePeriodSeconds: 0
+  deletionTimestamp: "2019-10-19T02:24:24Z"
+$ oc scale deploy finalizer-test --replicas=5
+deployment.extensions/finalizer-test scaled
+$ oc scale deploy finalizer-test --replicas=1
+deployment.extensions/finalizer-test scaled
+$ oc get deploy
+NAME             DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+finalizer-test   1         3         3            3           1m
+$ oc get pods
+NAME                             READY     STATUS    RESTARTS   AGE
+finalizer-test-786c7b7db-cbf5x   1/1       Running   0          1m
+finalizer-test-786c7b7db-nr49p   1/1       Running   0          1m
+finalizer-test-786c7b7db-pz4tn   1/1       Running   0          1m
+myfirstreplicaset-47g22          1/1       Running   0          4m
+myfirstreplicaset-4qnqs          1/1       Running   0          4m
+myfirstreplicaset-9mhdm          1/1       Running   0          4m
+myfirstreplicaset-tvmk2          1/1       Running   0          4m
+myfirstreplicaset-x9pdr          1/1       Running   0          4m
+$ cat > finalizer-test-remove.yaml<<EOF
+> apiVersion: extensions/v1beta1
+> kind: Deployment
+> metadata:
+>   name: finalizer-test
+>   namespace: myproject
+>   labels:
+>     app: finalizer-test
+>   finalizers:
+> spec:
+>   replicas: 3
+>   template:
+>     metadata:
+>       labels:
+>         app: finalizer-test
+>     spec:
+>       containers:
+>         - name: hieveryone
+>           image: openshiftkatacoda/blog-django-py
+>           imagePullPolicy: Always
+>           ports:
+>             - name: helloworldport
+>               containerPort: 8080
+> EOF
+$ oc replace -f finalizer-test-remove.yaml
+deployment.extensions/finalizer-test replaced
+$ oc get deploy
+No resources found.
+$ oc get pods
+NAME                             READY     STATUS        RESTARTS   AGE
+finalizer-test-786c7b7db-cbf5x   0/1       Terminating   0          1m
+finalizer-test-786c7b7db-nr49p   0/1       Terminating   0          1m
+finalizer-test-786c7b7db-pz4tn   0/1       Terminating   0          1m
+myfirstreplicaset-47g22          1/1       Running       0          4m
+myfirstreplicaset-4qnqs          1/1       Running       0          4m
+myfirstreplicaset-9mhdm          1/1       Running       0          4m
+myfirstreplicaset-tvmk2          1/1       Running       0          4m
+myfirstreplicaset-x9pdr          1/1       Running       0          4m
+
+
+----------------------------------------------------
+
+$ oc proxy --port=8001
+F1019 02:26:11.064213    9090 proxy.go:155] listen tcp 127.0.0.1:8001: bind: address already in use
+$ cat >> postgres-crd.yaml <<EOF
+> apiVersion: apiextensions.k8s.io/v1beta1
+> kind: CustomResourceDefinition
+> metadata:
+>   name: postgreses.rd.example.com
+> spec:
+>   group: rd.example.com
+>   names:
+>     kind: Postgres
+>     listKind: PostgresList
+>     plural: postgreses
+>     singular: postgres
+>     shortNames:
+>     - pg
+>   scope: Namespaced
+>   version: v1alpha1
+> EOF
+$ oc create -f postgres-crd.yaml
+customresourcedefinition.apiextensions.k8s.io/postgreses.rd.example.com created
+$ curl http://localhost:8001/apis | jq .groups[].name
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 10249    0 10249    0     0  1366k      0 --:--:-- --:--:-- --:--:-- 1429k
+"apiregistration.k8s.io"
+"extensions"
+"apps"
+"events.k8s.io"
+"authentication.k8s.io"
+"authorization.k8s.io"
+"autoscaling"
+"batch"
+"certificates.k8s.io"
+"networking.k8s.io"
+"policy"
+"authorization.openshift.io"
+"rbac.authorization.k8s.io"
+"storage.k8s.io"
+"admissionregistration.k8s.io"
+"apiextensions.k8s.io"
+"scheduling.k8s.io"
+"apps.openshift.io"
+"build.openshift.io"
+"image.openshift.io"
+"network.openshift.io"
+"oauth.openshift.io"
+"project.openshift.io"
+"quota.openshift.io"
+"route.openshift.io"
+"security.openshift.io"
+"template.openshift.io"
+"user.openshift.io"
+"monitoring.coreos.com"
+"automationbroker.io"
+"rd.example.com"
+"servicecatalog.k8s.io"
+$ oc api-versions
+admissionregistration.k8s.io/v1beta1
+apiextensions.k8s.io/v1beta1
+apiregistration.k8s.io/v1
+apiregistration.k8s.io/v1beta1
+apps.openshift.io/v1
+apps/v1
+apps/v1beta1
+apps/v1beta2
+authentication.k8s.io/v1
+authentication.k8s.io/v1beta1
+authorization.k8s.io/v1
+authorization.k8s.io/v1beta1
+authorization.openshift.io/v1
+automationbroker.io/v1alpha1
+autoscaling/v1
+autoscaling/v2beta1
+batch/v1
+batch/v1beta1
+build.openshift.io/v1
+certificates.k8s.io/v1beta1
+events.k8s.io/v1beta1
+extensions/v1beta1
+image.openshift.io/v1
+monitoring.coreos.com/v1
+network.openshift.io/v1
+networking.k8s.io/v1
+oauth.openshift.io/v1
+policy/v1beta1
+project.openshift.io/v1
+quota.openshift.io/v1
+rbac.authorization.k8s.io/v1
+rbac.authorization.k8s.io/v1beta1
+rd.example.com/v1alpha1
+route.openshift.io/v1
+scheduling.k8s.io/v1beta1
+security.openshift.io/v1
+servicecatalog.k8s.io/v1beta1
+storage.k8s.io/v1
+storage.k8s.io/v1beta1
+template.openshift.io/v1
+user.openshift.io/v1
+v1
+$ curl http://localhost:8001/apis/rd.example.com/v1alpha1 | jq
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   461  100   461    0     0  70413      0 --:--:-- --:--:-- --:--:-- 76833
+{
+  "kind": "APIResourceList",
+  "apiVersion": "v1",
+  "groupVersion": "rd.example.com/v1alpha1",
+  "resources": [
+    {
+      "name": "postgreses",
+      "singularName": "postgres",
+      "namespaced": true,
+      "kind": "Postgres",
+      "verbs": [
+        "delete",
+        "deletecollection",
+        "get",
+        "list",
+        "patch",
+        "create",
+        "update",
+        "watch"
+      ],
+      "shortNames": [
+        "pg"
+      ]
+    }
+  ]
+}
+$ oc get postgres
+No resources found.
+
+
+----------------------------------------------------
+
+$ cat >> wordpress-database.yaml <<EOF
+> apiVersion: "rd.example.com/v1alpha1"
+> kind: Postgres
+> metadata:
+>   name: wordpressdb
+> spec:
+>   user: postgres
+>   password: postgres
+>   database: primarydb
+>   nodes: 3
+> EOF
+$ oc create -f wordpress-database.yaml
+postgres.rd.example.com/wordpressdb created
+$ oc get postgres
+NAME          AGE
+wordpressdb   4s
+$ oc get postgres wordpressdb -o yaml
+apiVersion: rd.example.com/v1alpha1
+kind: Postgres
+metadata:
+  creationTimestamp: "2019-10-19T02:27:04Z"
+  generation: 1
+  name: wordpressdb
+  namespace: myproject
+  resourceVersion: "35414"
+  selfLink: /apis/rd.example.com/v1alpha1/namespaces/myproject/postgreses/wordpressdb
+  uid: f03f0645-f217-11e9-88fd-0242ac110011
+spec:
+  database: primarydb
+  nodes: 3
+  password: postgres
+  user: postgres
+$
+
+
+----------------------------------------------------
+
+
+
