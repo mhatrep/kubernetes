@@ -1,0 +1,791 @@
+# Use Helm Package Manager for Kubernetes to deploy Redis
+
+# Reference - https://www.katacoda.com/courses/kubernetes/helm-package-manager
+
+master $ launch.sh
+Waiting for Kubernetes to start...
+Kubernetes started
+master $ curl -LO https://storage.googleapis.com/kubernetes-helm/helm-v2.8.2-linux-amd64.tar.gz
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 14.2M  100 14.2M    0     0  14.7M      0 --:--:-- --:--:-- --:--:-- 14.7M
+master $ tar -xvf helm-v2.8.2-linux-amd64.tar.gz
+linux-amd64/
+linux-amd64/helm
+linux-amd64/README.md
+linux-amd64/LICENSE
+master $ mv linux-amd64/helm /usr/local/bin/
+master $ helm init
+Creating /root/.helm
+Creating /root/.helm/repository
+Creating /root/.helm/repository/cache
+Creating /root/.helm/repository/local
+Creating /root/.helm/plugins
+Creating /root/.helm/starters
+Creating /root/.helm/cache/archive
+Creating /root/.helm/repository/repositories.yaml
+Adding stable repo with URL: https://kubernetes-charts.storage.googleapis.com
+Adding local repo with URL: http://127.0.0.1:8879/charts
+$HELM_HOME has been configured at /root/.helm.
+
+Tiller (the Helm server-side component) has been installed into your Kubernetes Cluster.
+
+Please note: by default, Tiller is deployed with an insecure 'allow unauthenticated users' policy.
+For more information on securing your installation see: https://docs.helm.sh/using_helm/#securing-your-helm-installation
+Happy Helming!
+master $ helm repo update
+Hang tight while we grab the latest from your chart repositories...
+...Skip local chart repository
+...Successfully got an update from the "stable" chart repository
+Update Complete. ⎈ Happy Helming!⎈
+
+
+----------------------------------------------------
+
+master $ helm search redis
+NAME                                    CHART VERSION   APP VERSION     DESCRIPTION
+stable/prometheus-redis-exporter        3.1.0           1.0.4           Prometheus exporter for Redis metrics
+stable/redis                            9.3.2           5.0.5           Open source, advanced key-value store. It is of...
+stable/redis-ha                         3.8.0           5.0.5           Highly available Kubernetes implementation of R...
+stable/sensu                            0.2.3           0.28            Sensu monitoring framework backed by the Redis ...
+master $ helm inspect stable/redis
+apiVersion: v1
+appVersion: 5.0.5
+description: Open source, advanced key-value store. It is often referred to as a data
+  structure server since keys can contain strings, hashes, lists, sets and sorted
+  sets.
+engine: gotpl
+home: http://redis.io/
+icon: https://bitnami.com/assets/stacks/redis/img/redis-stack-220x234.png
+keywords:
+- redis
+- keyvalue
+- database
+maintainers:
+- email: containers@bitnami.com
+  name: Bitnami
+- email: cedric@desaintmartin.fr
+  name: desaintmartin
+name: redis
+sources:
+- https://github.com/bitnami/bitnami-docker-redis
+version: 9.3.2
+
+---
+## Global Docker image parameters
+## Please, note that this will override the image parameters, including dependencies, configured to use the global value
+## Current available global Docker image parameters: imageRegistry and imagePullSecrets
+##
+# global:
+#   imageRegistry: myRegistryName
+#   imagePullSecrets:
+#     - myRegistryKeySecretName
+#   storageClass: myStorageClass
+
+## Bitnami Redis image version
+## ref: https://hub.docker.com/r/bitnami/redis/tags/
+##
+image:
+  registry: docker.io
+  repository: bitnami/redis
+  ## Bitnami Redis image tag
+  ## ref: https://github.com/bitnami/bitnami-docker-redis#supported-tags-and-respective-dockerfile-links
+  ##
+  tag: 5.0.5-debian-9-r141
+  ## Specify a imagePullPolicy
+  ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+  ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
+  ##
+  pullPolicy: IfNotPresent
+  ## Optionally specify an array of imagePullSecrets.
+  ## Secrets must be manually created in the namespace.
+  ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+  ##
+  # pullSecrets:
+  #   - myRegistryKeySecretName
+
+## String to partially override redis.fullname template (will maintain the release name)
+##
+# nameOverride:
+
+## String to fully override redis.fullname template
+##
+# fullnameOverride:
+
+## Cluster settings
+cluster:
+  enabled: true
+  slaveCount: 2
+
+## Use redis sentinel in the redis pod. This will disable the master and slave services and
+## create one redis service with ports to the sentinel and the redis instances
+sentinel:
+  enabled: false
+  ## Bitnami Redis Sentintel image version
+  ## ref: https://hub.docker.com/r/bitnami/redis-sentinel/tags/
+  ##
+  image:
+    registry: docker.io
+    repository: bitnami/redis-sentinel
+    ## Bitnami Redis image tag
+    ## ref: https://github.com/bitnami/bitnami-docker-redis-sentinel#supported-tags-and-respective-dockerfile-links
+    ##
+    tag: 5.0.5-debian-9-r134
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
+    ##
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+    ##
+    # pullSecrets:
+    #   - myRegistryKeySecretName
+  masterSet: mymaster
+  initialCheckTimeout: 5
+  quorum: 2
+  downAfterMilliseconds: 60000
+  failoverTimeout: 18000
+  parallelSyncs: 1
+  port: 26379
+  ## Additional Redis configuration for the sentinel nodes
+  ## ref: https://redis.io/topics/config
+  ##
+  configmap:
+  ## Configure extra options for Redis Sentinel liveness and readiness probes
+  ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#configure-probes)
+  ##
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 5
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 1
+    successThreshold: 1
+    failureThreshold: 5
+  ## Redis Sentinel resource requests and limits
+  ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+  # resources:
+  #   requests:
+  #     memory: 256Mi
+  #     cpu: 100m
+  ## Redis Sentinel Service properties
+  service:
+    ##  Redis Sentinel Service type
+    type: ClusterIP
+    sentinelPort: 26379
+    redisPort: 6379
+
+    ## Specify the nodePort value for the LoadBalancer and NodePort service types.
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
+    ##
+    # sentinelNodePort:
+    # redisNodePort:
+
+    ## Provide any additional annotations which may be required. This can be used to
+    ## set the LoadBalancer service type to internal only.
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#internal-load-balancer
+    ##
+    annotations: {}
+    labels: {}
+    loadBalancerIP:
+
+## Specifies the Kubernetes Cluster's Domain Name.
+##
+clusterDomain: cluster.local
+
+networkPolicy:
+  ## Specifies whether a NetworkPolicy should be created
+  ##
+  enabled: false
+
+  ## The Policy model to apply. When set to false, only pods with the correct
+  ## client label will have network access to the port Redis is listening
+  ## on. When true, Redis will accept connections from any source
+  ## (with the correct destination port).
+  ##
+  # allowExternal: true
+
+serviceAccount:
+  ## Specifies whether a ServiceAccount should be created
+  ##
+  create: false
+  ## The name of the ServiceAccount to use.
+  ## If not set and create is true, a name is generated using the fullname template
+  name:
+
+rbac:
+  ## Specifies whether RBAC resources should be created
+  ##
+  create: false
+
+  role:
+    ## Rules to create. It follows the role specification
+    # rules:
+    #  - apiGroups:
+    #    - extensions
+    #    resources:
+    #      - podsecuritypolicies
+    #    verbs:
+    #      - use
+    #    resourceNames:
+    #      - gce.unprivileged
+    rules: []
+
+## Redis pod Security Context
+securityContext:
+  enabled: true
+  fsGroup: 1001
+  runAsUser: 1001
+  ## sysctl settings for master and slave pods
+  ##
+  ## Uncomment the setting below to increase the net.core.somaxconn value
+  ##
+  # sysctls:
+  # - name: net.core.somaxconn
+  #   value: "10000"
+
+## Use password authentication
+usePassword: true
+## Redis password (both master and slave)
+## Defaults to a random 10-character alphanumeric string if not set and usePassword is true
+## ref: https://github.com/bitnami/bitnami-docker-redis#setting-the-server-password-on-first-run
+##
+password:
+## Use existing secret (ignores previous password)
+# existingSecret:
+## Password key to be retrieved from Redis secret
+##
+# existingSecretPasswordKey:
+
+## Mount secrets as files instead of environment variables
+usePasswordFile: false
+
+## Persist data to a persistent volume (Redis Master)
+persistence: {}
+  ## A manually managed Persistent Volume and Claim
+  ## Requires persistence.enabled: true
+  ## If defined, PVC must be created manually before volume will be bound
+  # existingClaim:
+
+# Redis port
+redisPort: 6379
+
+##
+## Redis Master parameters
+##
+master:
+  ## Redis command arguments
+  ##
+  ## Can be used to specify command line arguments, for example:
+  ##
+  command: "/run.sh"
+  ## Additional Redis configuration for the master nodes
+  ## ref: https://redis.io/topics/config
+  ##
+  configmap:
+  ## Redis additional command line flags
+  ##
+  ## Can be used to specify command line flags, for example:
+  ##
+  ## extraFlags:
+  ##  - "--maxmemory-policy volatile-ttl"
+  ##  - "--repl-backlog-size 1024mb"
+  extraFlags: []
+  ## Comma-separated list of Redis commands to disable
+  ##
+  ## Can be used to disable Redis commands for security reasons.
+  ## Commands will be completely disabled by renaming each to an empty string.
+  ## ref: https://redis.io/topics/security#disabling-of-specific-commands
+  ##
+  disableCommands:
+  - FLUSHDB
+  - FLUSHALL
+
+  ## Redis Master additional pod labels and annotations
+  ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+  podLabels: {}
+  podAnnotations: {}
+
+  ## Redis Master resource requests and limits
+  ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+  # resources:
+  #   requests:
+  #     memory: 256Mi
+  #     cpu: 100m
+  ## Use an alternate scheduler, e.g. "stork".
+  ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+  ##
+  # schedulerName:
+
+  ## Configure extra options for Redis Master liveness and readiness probes
+  ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#configure-probes)
+  ##
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 5
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 1
+    successThreshold: 1
+    failureThreshold: 5
+
+  ## Redis Master Node selectors and tolerations for pod assignment
+  ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+  ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#taints-and-tolerations-beta-feature
+  ##
+  # nodeSelector: {"beta.kubernetes.io/arch": "amd64"}
+  # tolerations: []
+  ## Redis Master pod/node affinity/anti-affinity
+  ##
+  affinity: {}
+
+  ## Redis Master Service properties
+  service:
+    ##  Redis Master Service type
+    type: ClusterIP
+    port: 6379
+
+    ## Specify the nodePort value for the LoadBalancer and NodePort service types.
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
+    ##
+    # nodePort:
+
+    ## Provide any additional annotations which may be required. This can be used to
+    ## set the LoadBalancer service type to internal only.
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#internal-load-balancer
+    ##
+    annotations: {}
+    labels: {}
+    loadBalancerIP:
+
+  ## Enable persistence using Persistent Volume Claims
+  ## ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
+  ##
+  persistence:
+    enabled: true
+    ## The path the volume will be mounted at, useful when using different
+    ## Redis images.
+    path: /data
+    ## The subdirectory of the volume to mount to, useful in dev environments
+    ## and one PV for multiple services.
+    subPath: ""
+    ## redis data Persistent Volume Storage Class
+    ## If defined, storageClassName: <storageClass>
+    ## If set to "-", storageClassName: "", which disables dynamic provisioning
+    ## If undefined (the default) or set to null, no storageClassName spec is
+    ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+    ##   GKE, AWS & OpenStack)
+    ##
+    # storageClass: "-"
+    accessModes:
+    - ReadWriteOnce
+    size: 8Gi
+
+  ## Update strategy, can be set to RollingUpdate or onDelete by default.
+  ## https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#updating-statefulsets
+  statefulset:
+    updateStrategy: RollingUpdate
+    ## Partition update strategy
+    ## https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions
+    # rollingUpdatePartition:
+
+  ## Redis Master pod priorityClassName
+  # priorityClassName: {}
+
+##
+## Redis Slave properties
+## Note: service.type is a mandatory parameter
+## The rest of the parameters are either optional or, if undefined, will inherit those declared in Redis Master
+##
+slave:
+  ## Slave Service properties
+  service:
+    ## Redis Slave Service type
+    type: ClusterIP
+    ## Redis port
+    port: 6379
+    ## Specify the nodePort value for the LoadBalancer and NodePort service types.
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
+    ##
+    # nodePort:
+
+    ## Provide any additional annotations which may be required. This can be used to
+    ## set the LoadBalancer service type to internal only.
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#internal-load-balancer
+    ##
+    annotations: {}
+    labels: {}
+    loadBalancerIP:
+
+  ## Redis slave port
+  port: 6379
+  ## Can be used to specify command line arguments, for example:
+  ##
+  command: "/run.sh"
+  ## Additional Redis configuration for the slave nodes
+  ## ref: https://redis.io/topics/config
+  ##
+  configmap:
+  ## Redis extra flags
+  extraFlags: []
+  ## List of Redis commands to disable
+  disableCommands:
+  - FLUSHDB
+  - FLUSHALL
+
+  ## Redis Slave pod/node affinity/anti-affinity
+  ##
+  affinity: {}
+
+  ## Configure extra options for Redis Slave liveness and readiness probes
+  ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#configure-probes)
+  ##
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 5
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 1
+    failureThreshold: 5
+
+  ## Redis slave Resource
+  # resources:
+  #   requests:
+  #     memory: 256Mi
+  #     cpu: 100m
+
+  ## Redis slave selectors and tolerations for pod assignment
+  # nodeSelector: {"beta.kubernetes.io/arch": "amd64"}
+  # tolerations: []
+
+  ## Use an alternate scheduler, e.g. "stork".
+  ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+  ##
+  # schedulerName:
+
+  ## Redis slave pod Annotation and Labels
+  podLabels: {}
+  podAnnotations: {}
+
+  ## Redis slave pod priorityClassName
+  # priorityClassName: {}
+
+  ## Enable persistence using Persistent Volume Claims
+  ## ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
+  ##
+  persistence:
+    enabled: true
+    ## The path the volume will be mounted at, useful when using different
+    ## Redis images.
+    path: /data
+    ## The subdirectory of the volume to mount to, useful in dev environments
+    ## and one PV for multiple services.
+    subPath: ""
+    ## redis data Persistent Volume Storage Class
+    ## If defined, storageClassName: <storageClass>
+    ## If set to "-", storageClassName: "", which disables dynamic provisioning
+    ## If undefined (the default) or set to null, no storageClassName spec is
+    ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+    ##   GKE, AWS & OpenStack)
+    ##
+    # storageClass: "-"
+    accessModes:
+    - ReadWriteOnce
+    size: 8Gi
+
+  ## Update strategy, can be set to RollingUpdate or onDelete by default.
+  ## https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#updating-statefulsets
+  statefulset:
+    updateStrategy: RollingUpdate
+    ## Partition update strategy
+    ## https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions
+    # rollingUpdatePartition:
+
+## Prometheus Exporter / Metrics
+##
+metrics:
+  enabled: false
+
+  image:
+    registry: docker.io
+    repository: bitnami/redis-exporter
+    tag: 1.1.1-debian-9-r13
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+    ##
+    # pullSecrets:
+    #   - myRegistryKeySecretName
+  ## Metrics exporter resource requests and limits
+  ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+  ##
+  # resources: {}
+
+  ## Extra arguments for Metrics exporter, for example:
+  ## extraArgs:
+  ##   check-keys: myKey,myOtherKey
+  # extraArgs: {}
+
+  ## Metrics exporter pod Annotation and Labels
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9121"
+  # podLabels: {}
+
+  # Enable this if you're using https://github.com/coreos/prometheus-operator
+  serviceMonitor:
+    enabled: false
+    ## Specify a namespace if needed
+    # namespace: monitoring
+    # fallback to the prometheus default unless specified
+    # interval: 10s
+    ## Defaults to what's used if you follow CoreOS [Prometheus Install Instructions](https://github.com/helm/charts/tree/master/stable/prometheus-operator#tldr)
+    ## [Prometheus Selector Label](https://github.com/helm/charts/tree/master/stable/prometheus-operator#prometheus-operator-1)
+    ## [Kube Prometheus Selector Label](https://github.com/helm/charts/tree/master/stable/prometheus-operator#exporters)
+    selector:
+      prometheus: kube-prometheus
+
+  ## Metrics exporter pod priorityClassName
+  # priorityClassName: {}
+  service:
+    type: ClusterIP
+    ## Use serviceLoadBalancerIP to request a specific static IP,
+    ## otherwise leave blank
+    # loadBalancerIP:
+    annotations: {}
+    labels: {}
+
+##
+## Init containers parameters:
+## volumePermissions: Change the owner of the persist volume mountpoint to RunAsUser:fsGroup
+##
+volumePermissions:
+  enabled: false
+  image:
+    registry: docker.io
+    repository: bitnami/minideb
+    tag: stretch
+    pullPolicy: Always
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+    ##
+    # pullSecrets:
+    #   - myRegistryKeySecretName
+  resources: {}
+  # resources:
+  #   requests:
+  #     memory: 128Mi
+  #     cpu: 100m
+
+## Redis config file
+## ref: https://redis.io/topics/config
+##
+configmap: |-
+  # Enable AOF https://redis.io/topics/persistence#append-only-file
+  appendonly yes
+  # Disable RDB persistence, AOF persistence already enabled.
+  save ""
+
+## Sysctl InitContainer
+## used to perform sysctl operation to modify Kernel settings (needed sometimes to avoid warnings)
+sysctlImage:
+  enabled: false
+  command: []
+  registry: docker.io
+  repository: bitnami/minideb
+  tag: stretch
+  pullPolicy: Always
+  ## Optionally specify an array of imagePullSecrets.
+  ## Secrets must be manually created in the namespace.
+  ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+  ##
+  # pullSecrets:
+  #   - myRegistryKeySecretName
+  mountHostSys: false
+  resources: {}
+  # resources:
+  #   requests:
+  #     memory: 128Mi
+  #     cpu: 100m
+  
+ 
+ ----------------------------------------------------
+ 
+ master $ helm install stable/redis
+NAME:   honorary-mink
+LAST DEPLOYED: Sat Oct 19 01:44:17 2019
+NAMESPACE: default
+STATUS: DEPLOYED
+
+RESOURCES:
+==> v1/Secret
+NAME                 TYPE    DATA  AGE
+honorary-mink-redis  Opaque  1     0s
+
+==> v1/ConfigMap
+NAME                        DATA  AGE
+honorary-mink-redis         3     0s
+honorary-mink-redis-health  6     0s
+
+==> v1/Service
+NAME                          TYPE       CLUSTER-IP     EXTERNAL-IP  PORT(S)   AGE
+honorary-mink-redis-headless  ClusterIP  None           <none>       6379/TCP  0s
+honorary-mink-redis-master    ClusterIP  10.110.36.214  <none>       6379/TCP  0s
+honorary-mink-redis-slave     ClusterIP  10.97.143.84   <none>       6379/TCP  0s
+
+==> v1/StatefulSet
+NAME                        DESIRED  CURRENT  AGE
+honorary-mink-redis-master  1        1        0s
+honorary-mink-redis-slave   2        1        0s
+
+==> v1/Pod(related)
+NAME                          READY  STATUS   RESTARTS  AGE
+honorary-mink-redis-master-0  0/1    Pending  0         0s
+honorary-mink-redis-slave-0   0/1    Pending  0         0s
+
+
+NOTES:
+** Please be patient while the chart is being deployed **
+Redis can be accessed via port 6379 on the following DNS names from within your cluster:
+
+honorary-mink-redis-master.default.svc.cluster.local for read/write operations
+honorary-mink-redis-slave.default.svc.cluster.local for read-only operations
+
+
+To get your password run:
+
+    export REDIS_PASSWORD=$(kubectl get secret --namespace default honorary-mink-redis -o jsonpath="{.data.redis-password}" | base64 --decode)
+
+To connect to your Redis server:
+
+1. Run a Redis pod that you can use as a client:
+
+   kubectl run --namespace default honorary-mink-redis-client --rm --tty -i --restart='Never' \
+    --env REDIS_PASSWORD=$REDIS_PASSWORD \
+   --image docker.io/bitnami/redis:5.0.5-debian-9-r141 -- bash
+
+2. Connect using the Redis CLI:
+   redis-cli -h honorary-mink-redis-master -a $REDIS_PASSWORD
+   redis-cli -h honorary-mink-redis-slave -a $REDIS_PASSWORD
+
+To connect to your database from outside the cluster execute the following commands:
+
+    kubectl port-forward --namespace default svc/honorary-mink-redis-master 6379:6379 &
+    redis-cli -h 127.0.0.1 -p 6379 -a $REDIS_PASSWORD
+
+
+
+master $ helm ls
+NAME            REVISION        UPDATED                         STATUS          CHART           NAMESPACE
+honorary-mink   1               Sat Oct 19 01:44:17 2019        DEPLOYED        redis-9.3.2     default
+
+
+----------------------------------------------------
+
+master $ kubectl get allNAME                               READY   STATUS    RESTARTS   AGE
+pod/honorary-mink-redis-master-0   0/1     Pending   0          61s
+pod/honorary-mink-redis-slave-0    0/1     Pending   0          61s
+
+NAME                                   TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+service/honorary-mink-redis-headless   ClusterIP   None            <none>        6379/TCP   61s
+service/honorary-mink-redis-master     ClusterIP   10.110.36.214   <none>        6379/TCP   61s
+service/honorary-mink-redis-slave      ClusterIP   10.97.143.84    <none>        6379/TCP   61s
+service/kubernetes                     ClusterIP   10.96.0.1       <none>        443/TCP    3m48s
+
+NAME                                          READY   AGE
+statefulset.apps/honorary-mink-redis-master   0/1     61s
+statefulset.apps/honorary-mink-redis-slave    0/2     61s
+master $ kubectl apply -f pv.yaml
+persistentvolume/pv-volume1 created
+persistentvolume/pv-volume2 created
+persistentvolume/pv-volume3 created
+master $ chmod 777 -R /mnt/data*
+chmod: cannot access '/mnt/data*': No such file or directory
+master $ helm install --name my-release stable/redis
+NAME:   my-release
+LAST DEPLOYED: Sat Oct 19 01:45:33 2019
+NAMESPACE: default
+STATUS: DEPLOYED
+
+RESOURCES:
+==> v1/StatefulSet
+NAME                     DESIRED  CURRENT  AGE
+my-release-redis-master  1        1        1s
+my-release-redis-slave   2        1        1s
+
+==> v1/Pod(related)
+NAME                       READY  STATUS   RESTARTS  AGE
+my-release-redis-master-0  0/1    Pending  0         1s
+my-release-redis-slave-0   0/1    Pending  0         1s
+
+==> v1/Secret
+NAME              TYPE    DATA  AGE
+my-release-redis  Opaque  1     1s
+
+==> v1/ConfigMap
+NAME                     DATA  AGE
+my-release-redis         3     1s
+my-release-redis-health  6     1s
+
+==> v1/Service
+NAME                       TYPE       CLUSTER-IP     EXTERNAL-IP  PORT(S)   AGE
+my-release-redis-headless  ClusterIP  None           <none>       6379/TCP  1s
+my-release-redis-master    ClusterIP  10.103.117.80  <none>       6379/TCP  1s
+my-release-redis-slave     ClusterIP  10.107.75.46   <none>       6379/TCP  1s
+
+
+NOTES:
+** Please be patient while the chart is being deployed **
+Redis can be accessed via port 6379 on the following DNS names from within your cluster:
+
+my-release-redis-master.default.svc.cluster.local for read/write operations
+my-release-redis-slave.default.svc.cluster.local for read-only operations
+
+
+To get your password run:
+
+    export REDIS_PASSWORD=$(kubectl get secret --namespace default my-release-redis -o jsonpath="{.data.redis-password}"| base64 --decode)
+
+To connect to your Redis server:
+
+1. Run a Redis pod that you can use as a client:
+
+   kubectl run --namespace default my-release-redis-client --rm --tty -i --restart='Never' \
+    --env REDIS_PASSWORD=$REDIS_PASSWORD \
+   --image docker.io/bitnami/redis:5.0.5-debian-9-r141 -- bash
+
+2. Connect using the Redis CLI:
+   redis-cli -h my-release-redis-master -a $REDIS_PASSWORD
+   redis-cli -h my-release-redis-slave -a $REDIS_PASSWORD
+
+To connect to your database from outside the cluster execute the following commands:
+
+    kubectl port-forward --namespace default svc/my-release-redis-master 6379:6379 &
+    redis-cli -h 127.0.0.1 -p 6379 -a $REDIS_PASSWORD
+    
+
+----------------------------------------------------
+
