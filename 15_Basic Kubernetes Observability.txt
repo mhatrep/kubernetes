@@ -1,0 +1,602 @@
+# Reference: https://www.katacoda.com/courses/kubernetes/kubernetes-observability-basics-by-javajon
+
+master $ kubectl version --short && kubectl cluster-info && kubectl get nodes
+Client Version: v1.14.0
+Server Version: v1.14.0
+Kubernetes master is running at https://172.17.0.16:6443
+dash-kubernetes-dashboard is running at https://172.17.0.16:6443/api/v1/namespaces/kube-system/services/dash-kubernetes-dashboard:http/proxy
+KubeDNS is running at https://172.17.0.16:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+NAME     STATUS   ROLES    AGE   VERSION
+master   Ready    master   37m   v1.14.0
+node01   Ready    <none>   37m   v1.14.0
+master $ helm version --short
+Client: v2.13.1+g618447c
+Server: v2.13.1+g618447c
+master $ export TOKEN=$(kubectl describe secret $(kubectl get secret | awk '/^dashboard-token-/{print $1}') | awk '$1=="token:"{print $2}') &&
+> echo -e "\n--- Copy and paste this token for dashboard access --\n$TOKEN\n---"
+
+--- Copy and paste this token for dashboard access --
+eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.na_7iZNmqtIA_QZUv2xWNAjn2mB8r...
+---
+
+----------------------------------------------------
+
+master $ kubectl create deployment random-logger --image=chentex/random-logger
+deployment.apps/random-logger createdmaster $ kubectl scale deployment/random-logger --replicas=3
+deployment.extensions/random-logger scaled
+master $ kubectl get pods
+NAME                             READY   STATUS              RESTARTS   AGE
+random-logger-5878df74fd-qn6mq   0/1     ContainerCreating   0          2s
+random-logger-5878df74fd-xw466   1/1     Running             0          5s
+random-logger-5878df74fd-zl6w5   0/1     ContainerCreating   0          2s
+master $
+
+----------------------------------------------------
+
+master $ kubectl create deployment random-logger --image=chentex/random-logger
+deployment.apps/random-logger createdmaster $ kubectl scale deployment/random-logger --replicas=3
+deployment.extensions/random-logger scaled
+master $ kubectl get pods
+NAME                             READY   STATUS              RESTARTS   AGE
+random-logger-5878df74fd-qn6mq   0/1     ContainerCreating   0          2s
+random-logger-5878df74fd-xw466   1/1     Running             0          5s
+random-logger-5878df74fd-zl6w5   0/1     ContainerCreating   0          2s
+master $
+
+master $ kubectl cluster-info dump --all-namespaces | more{    "kind": "NodeList",    "apiVersion": "v1",    "metadata": {        "selfLink": "/api/v1/nodes",        "resourceVersion": "6274"    },    "items": [        {            "metadata": {                "name": "master",                "selfLink": "/api/v1/nodes/master",                "uid": "88b9f631-f203-11e9-aba4-0242ac110010",                "resourceVersion": "6195",                "creationTimestamp": "2019-10-19T00:01:00Z",                "labels": {                    "beta.kubernetes.io/arch": "amd64",                    "beta.kubernetes.io/os": "linux",                    "kubernetes.io/arch": "amd64",                    "kubernetes.io/hostname": "master",                    "kubernetes.io/os": "linux",                    "node-role.kubernetes.io/master": ""
+                },
+                "annotations": {
+                    "kubeadm.alpha.kubernetes.io/cri-socket": "/var/run/dockershim.sock",
+                    "node.alpha.kubernetes.io/ttl": "0",
+--More--
+
+
+----------------------------------------------------
+
+master $ kubectl describe node node01Name:               node01Roles:              <none>Labels:             beta.kubernetes.io/arch=amd64                    beta.kubernetes.io/os=linux                    kubernetes.io/arch=amd64                    kubernetes.io/hostname=node01                    kubernetes.io/os=linuxAnnotations:        kubeadm.alpha.kubernetes.io/cri-socket: /var/run/dockershim.sock                    node.alpha.kubernetes.io/ttl: 0                    volumes.kubernetes.io/controller-managed-attach-detach: trueCreationTimestamp:  Sat, 19 Oct 2019 00:01:14 +0000Taints:             <none>Unschedulable:      falseConditions:  Type                 Status  LastHeartbeatTime                 LastTransitionTime                Reason       Message  ----                 ------  -----------------                 ------------------                ------       -------  NetworkUnavailable   False   Sat, 19 Oct 2019 00:01:48 +0000   Sat, 19 Oct 2019 00:01:48 +0000   WeaveIsUp       Weave pod has set this  MemoryPressure       False   Sat, 19 Oct 2019 01:02:24 +0000   Sat, 19 Oct 2019 00:01:14 +0000   KubeletHasSufficientMemory   kubelet has sufficient memory available
+  DiskPressure         False   Sat, 19 Oct 2019 01:02:24 +0000   Sat, 19 Oct 2019 00:01:14 +0000   KubeletHasNoDiskPressure     kubelet has no disk pressure
+  PIDPressure          False   Sat, 19 Oct 2019 01:02:24 +0000   Sat, 19 Oct 2019 00:01:14 +0000   KubeletHasSufficientPID      kubelet has sufficient PID available
+kubectl describe node node01
+  Ready                True    Sat, 19 Oct 2019 01:02:24 +0000   Sat, 19 Oct 2019 00:01:24 +0000   KubeletReady       kubelet is posting ready status. AppArmor enabled
+Addresses:
+  InternalIP:  172.17.0.25
+  Hostname:    node01
+Capacity:
+ cpu:                4
+ ephemeral-storage:  46209424Ki
+ hugepages-1Gi:      0
+ hugepages-2Mi:      0
+ memory:             4045932Ki
+ pods:               110
+Allocatable:
+ cpu:                4
+ ephemeral-storage:  42586605088
+ hugepages-1Gi:      0
+ hugepages-2Mi:      0
+ memory:             3943532Ki
+ pods:               110
+System Info:
+ Machine ID:                 5b64aa7ee16bd31922cecabe5daa5226
+ System UUID:                5b64aa7ee16bd31922cecabe5daa5226
+ Boot ID:                    b819c946-98d2-4fd2-a766-d441f7c20c35
+ Kernel Version:             4.4.0-150-generic
+ OS Image:                   Ubuntu 16.04.6 LTS
+ Operating System:           linux
+ Architecture:               amd64
+ Container Runtime Version:  docker://18.9.5
+ Kubelet Version:            v1.14.0
+ Kube-Proxy Version:         v1.14.0
+Non-terminated Pods:         (11 in total)
+  Namespace                  Name                                         CPU Requests  CPU Limits  Memory Requests  Memory Limits  AGE
+  ---------                  ----                                         ------------  ----------  ---------------  -------------  ---
+  default                    random-logger-5878df74fd-qn6mq               0 (0%)        0 (0%)      0 (0%)           0 (0%)         4m52s
+  default                    random-logger-5878df74fd-xw466               0 (0%)        0 (0%)      0 (0%)           0 (0%)         4m55s
+  default                    random-logger-5878df74fd-zl6w5               0 (0%)        0 (0%)      0 (0%)           0 (0%)         4m52s
+  kube-system                coredns-fb8b8dccf-5v9td                      100m (2%)     0 (0%)      70Mi (1%)        170Mi (4%)     61m
+  kube-system                coredns-fb8b8dccf-wxcgc                      100m (2%)     0 (0%)      70Mi (1%)        170Mi (4%)     61m
+  kube-system                dash-kubernetes-dashboard-dff4ccb96-kwzf7    100m (2%)     100m (2%)   100Mi (2%)       100Mi (2%)     25m
+  kube-system                katacoda-cloud-provider-7cc8b465ff-5zkf5     200m (5%)     0 (0%)      0 (0%)           0 (0%)         61m
+  kube-system                kube-keepalived-vip-lgxs5                    0 (0%)        0 (0%)      0 (0%)           0 (0%)         61m
+  kube-system                kube-proxy-b88c6                             0 (0%)        0 (0%)      0 (0%)           0 (0%)         61m
+  kube-system                tiller-deploy-c48485567-zc67w                0 (0%)        0 (0%)      0 (0%)           0 (0%)         25m
+  kube-system                weave-net-w8gxj                              20m (0%)      0 (0%)      0 (0%)           0 (0%)         61m
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.)
+  Resource           Requests    Limits
+  --------           --------    ------
+  cpu                520m (13%)  100m (2%)
+  memory             240Mi (6%)  440Mi (11%)
+  ephemeral-storage  0 (0%)      0 (0%)
+Events:              <none>
+master $ kubectl describe node node01
+Name:               node01
+Roles:              <none>
+Labels:             beta.kubernetes.io/arch=amd64
+                    beta.kubernetes.io/os=linux
+                    kubernetes.io/arch=amd64
+                    kubernetes.io/hostname=node01
+                    kubernetes.io/os=linux
+Annotations:        kubeadm.alpha.kubernetes.io/cri-socket: /var/run/dockershim.sock
+                    node.alpha.kubernetes.io/ttl: 0
+                    volumes.kubernetes.io/controller-managed-attach-detach: true
+CreationTimestamp:  Sat, 19 Oct 2019 00:01:14 +0000
+Taints:             <none>
+Unschedulable:      false
+Conditions:
+  Type                 Status  LastHeartbeatTime                 LastTransitionTime                Reason       Message
+  ----                 ------  -----------------                 ------------------                ------       -------
+  NetworkUnavailable   False   Sat, 19 Oct 2019 00:01:48 +0000   Sat, 19 Oct 2019 00:01:48 +0000   WeaveIsUp       Weave pod has set this
+  MemoryPressure       False   Sat, 19 Oct 2019 01:02:24 +0000   Sat, 19 Oct 2019 00:01:14 +0000   KubeletHasSufficientMemory   kubelet has sufficient memory available
+  DiskPressure         False   Sat, 19 Oct 2019 01:02:24 +0000   Sat, 19 Oct 2019 00:01:14 +0000   KubeletHasNoDiskPressure     kubelet has no disk pressure
+  PIDPressure          False   Sat, 19 Oct 2019 01:02:24 +0000   Sat, 19 Oct 2019 00:01:14 +0000   KubeletHasSufficientPID      kubelet has sufficient PID available
+  Ready                True    Sat, 19 Oct 2019 01:02:24 +0000   Sat, 19 Oct 2019 00:01:24 +0000   KubeletReady       kubelet is posting ready status. AppArmor enabled
+Addresses:
+  InternalIP:  172.17.0.25
+  Hostname:    node01
+Capacity:
+ cpu:                4
+ ephemeral-storage:  46209424Ki
+ hugepages-1Gi:      0
+ hugepages-2Mi:      0
+ memory:             4045932Ki
+ pods:               110
+Allocatable:
+ cpu:                4
+ ephemeral-storage:  42586605088
+ hugepages-1Gi:      0
+ hugepages-2Mi:      0
+ memory:             3943532Ki
+ pods:               110
+System Info:
+ Machine ID:                 5b64aa7ee16bd31922cecabe5daa5226
+ System UUID:                5b64aa7ee16bd31922cecabe5daa5226
+ Boot ID:                    b819c946-98d2-4fd2-a766-d441f7c20c35
+ Kernel Version:             4.4.0-150-generic
+ OS Image:                   Ubuntu 16.04.6 LTS
+ Operating System:           linux
+ Architecture:               amd64
+ Container Runtime Version:  docker://18.9.5
+ Kubelet Version:            v1.14.0
+ Kube-Proxy Version:         v1.14.0
+Non-terminated Pods:         (11 in total)
+  Namespace                  Name                                         CPU Requests  CPU Limits  Memory Requests  Memory Limits  AGE
+  ---------                  ----                                         ------------  ----------  ---------------  -------------  ---
+  default                    random-logger-5878df74fd-qn6mq               0 (0%)        0 (0%)      0 (0%)           0 (0%)         4m52s
+  default                    random-logger-5878df74fd-xw466               0 (0%)        0 (0%)      0 (0%)           0 (0%)         4m55s
+  default                    random-logger-5878df74fd-zl6w5               0 (0%)        0 (0%)      0 (0%)           0 (0%)         4m52s
+  kube-system                coredns-fb8b8dccf-5v9td                      100m (2%)     0 (0%)      70Mi (1%)        170Mi (4%)     61m
+  kube-system                coredns-fb8b8dccf-wxcgc                      100m (2%)     0 (0%)      70Mi (1%)        170Mi (4%)     61m
+  kube-system                dash-kubernetes-dashboard-dff4ccb96-kwzf7    100m (2%)     100m (2%)   100Mi (2%)       100Mi (2%)     25m
+  kube-system                katacoda-cloud-provider-7cc8b465ff-5zkf5     200m (5%)     0 (0%)      0 (0%)           0 (0%)         61m
+  kube-system                kube-keepalived-vip-lgxs5                    0 (0%)        0 (0%)      0 (0%)           0 (0%)         61m
+  kube-system                kube-proxy-b88c6                             0 (0%)        0 (0%)      0 (0%)           0 (0%)         61m
+  kube-system                tiller-deploy-c48485567-zc67w                0 (0%)        0 (0%)      0 (0%)           0 (0%)         25m
+  kube-system                weave-net-w8gxj                              20m (0%)      0 (0%)      0 (0%)           0 (0%)         61m
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.)
+  Resource           Requests    Limits
+  --------           --------    ------
+  cpu                520m (13%)  100m (2%)
+  memory             240Mi (6%)  440Mi (11%)
+  ephemeral-storage  0 (0%)      0 (0%)
+Events:              <none>
+
+----------------------------------------------------
+
+master $ kubectl describe deployment random-logger
+Name:                   random-loggerNamespace:              default
+CreationTimestamp:      Sat, 19 Oct 2019 00:57:47 +0000Labels:                 app=random-logger
+Annotations:            deployment.kubernetes.io/revision: 1Selector:               app=random-logger
+Replicas:               3 desired | 3 updated | 3 total | 3 available | 0 unavailableStrategyType:           RollingUpdate
+MinReadySeconds:        0RollingUpdateStrategy:  25% max unavailable, 25% max surge
+Pod Template:  Labels:  app=random-logger
+  Containers:   random-logger:
+    Image:        chentex/random-logger    Port:         <none>
+    Host Port:    <none>
+    Environment:  <none>
+    Mounts:       <none>
+  Volumes:        <none>
+Conditions:
+  Type           Status  Reason
+  ----           ------  ------
+  Available      True    MinimumReplicasAvailable
+  Progressing    True    NewReplicaSetAvailable
+OldReplicaSets:  <none>
+NewReplicaSet:   random-logger-5878df74fd (3/3 replicas created)
+Events:
+  Type    Reason             Age    From                   Message
+  ----    ------             ----   ----                   -------
+  Normal  ScalingReplicaSet  5m30s  deployment-controller  Scaled up replica set random-logger-5878df74fd to 1
+  Normal  ScalingReplicaSet  5m27s  deployment-controller  Scaled up replica set random-logger-5878df74fd to 3  
+  
+  ----------------------------------------------------
+  
+  master $ kubectl describe deployments | grep "Replicas:"
+Replicas:               3 desired | 3 updated | 3 total | 3 available | 0 unavailablemaster $ kubectl get pods
+NAME                             READY   STATUS    RESTARTS   AGErandom-logger-5878df74fd-qn6mq   1/1     Running   0          6m53s
+random-logger-5878df74fd-xw466   1/1     Running   0          6m56srandom-logger-5878df74fd-zl6w5   1/1     Running   0          6m53s
+master $ kubectl describe podsName:               random-logger-5878df74fd-qn6mq
+Namespace:          default
+Priority:           0
+PriorityClassName:  <none>
+Node:               node01/172.17.0.25
+Start Time:         Sat, 19 Oct 2019 00:57:50 +0000
+Labels:             app=random-logger
+                    pod-template-hash=5878df74fd
+Annotations:        <none>
+Status:             Running
+IP:                 10.40.0.4
+Controlled By:      ReplicaSet/random-logger-5878df74fd
+Containers:
+  random-logger:
+    Container ID:   docker://c0e692da3e6784dec20c40cd6531fe082f674a782b63c092694ca1dcd04f7027
+    Image:          chentex/random-logger
+    Image ID:       docker-pullable://chentex/random-logger@sha256:7a1a16776067bae430188138752df09a9b8707e2826ce5a3a996114911f44068
+    Port:           <none>
+    Host Port:      <none>
+    State:          Running
+      Started:      Sat, 19 Oct 2019 00:57:54 +0000
+    Ready:          True
+    Restart Count:  0
+    Environment:    <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from default-token-qkbpk (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  default-token-qkbpk:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  default-token-qkbpk
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s
+Events:
+  Type    Reason     Age    From               Message
+  ----    ------     ----   ----               -------
+  Normal  Scheduled  6m59s  default-scheduler  Successfully assigned default/random-logger-5878df74fd-qn6mq to node01
+  Normal  Pulling    6m57s  kubelet, node01    Pulling image "chentex/random-logger"
+  Normal  Pulled     6m56s  kubelet, node01    Successfully pulled image "chentex/random-logger"
+  Normal  Created    6m55s  kubelet, node01    Created container random-logger
+  Normal  Started    6m55s  kubelet, node01    Started container random-logger
+
+
+Name:               random-logger-5878df74fd-xw466
+Namespace:          default
+Priority:           0
+PriorityClassName:  <none>
+Node:               node01/172.17.0.25
+Start Time:         Sat, 19 Oct 2019 00:57:47 +0000
+Labels:             app=random-logger
+                    pod-template-hash=5878df74fd
+Annotations:        <none>
+Status:             Running
+IP:                 10.40.0.3
+Controlled By:      ReplicaSet/random-logger-5878df74fd
+Containers:
+  random-logger:
+    Container ID:   docker://47738bc413dce4442fac573b156d74b81ebe81a72c818f9a0f8ebe1c34e6185c
+    Image:          chentex/random-logger
+    Image ID:       docker-pullable://chentex/random-logger@sha256:7a1a16776067bae430188138752df09a9b8707e2826ce5a3a996114911f44068
+    Port:           <none>
+    Host Port:      <none>
+    State:          Running
+      Started:      Sat, 19 Oct 2019 00:57:51 +0000
+    Ready:          True
+    Restart Count:  0
+    Environment:    <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from default-token-qkbpk (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  default-token-qkbpk:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  default-token-qkbpk
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s
+Events:
+  Type    Reason     Age    From               Message
+  ----    ------     ----   ----               -------
+  Normal  Scheduled  7m2s   default-scheduler  Successfully assigned default/random-logger-5878df74fd-xw466 to node01
+  Normal  Pulling    7m     kubelet, node01    Pulling image "chentex/random-logger"
+  Normal  Pulled     6m58s  kubelet, node01    Successfully pulled image "chentex/random-logger"
+  Normal  Created    6m58s  kubelet, node01    Created container random-logger
+  Normal  Started    6m58s  kubelet, node01    Started container random-logger
+
+
+Name:               random-logger-5878df74fd-zl6w5
+Namespace:          default
+Priority:           0
+PriorityClassName:  <none>
+Node:               node01/172.17.0.25
+Start Time:         Sat, 19 Oct 2019 00:57:50 +0000
+Labels:             app=random-logger
+                    pod-template-hash=5878df74fd
+Annotations:        <none>
+Status:             Running
+IP:                 10.40.0.5
+Controlled By:      ReplicaSet/random-logger-5878df74fd
+Containers:
+  random-logger:
+    Container ID:   docker://32f6b84f3f0fe7f4fe31729d4bdfa78dc05a14568ca8cfd3779e8f0900efeb9a
+    Image:          chentex/random-logger
+    Image ID:       docker-pullable://chentex/random-logger@sha256:7a1a16776067bae430188138752df09a9b8707e2826ce5a3a996114911f44068
+    Port:           <none>
+    Host Port:      <none>
+    State:          Running
+      Started:      Sat, 19 Oct 2019 00:57:53 +0000
+    Ready:          True
+    Restart Count:  0
+    Environment:    <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from default-token-qkbpk (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  default-token-qkbpk:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  default-token-qkbpk
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s
+Events:
+  Type    Reason     Age    From               Message
+  ----    ------     ----   ----               -------
+  Normal  Scheduled  6m59s  default-scheduler  Successfully assigned default/random-logger-5878df74fd-zl6w5 to node01
+  Normal  Pulling    6m58s  kubelet, node01    Pulling image "chentex/random-logger"
+  Normal  Pulled     6m57s  kubelet, node01    Successfully pulled image "chentex/random-logger"
+  Normal  Created    6m57s  kubelet, node01    Created container random-logger
+  Normal  Started    6m56s  kubelet, node01    Started container random-logger
+  
+  
+  ----------------------------------------------------
+  
+  master $ kubectl get events
+LAST SEEN   TYPE     REASON              OBJECT                                MESSAGE
+7m55s       Normal   Scheduled           pod/random-logger-5878df74fd-qn6mq    Successfully assigned default/random-logger-5878df74fd-qn6mq to node01
+7m53s       Normal   Pulling             pod/random-logger-5878df74fd-qn6mq    Pulling image "chentex/random-logger"
+7m52s       Normal   Pulled              pod/random-logger-5878df74fd-qn6mq    Successfully pulled image "chentex/random-logger"
+7m51s       Normal   Created             pod/random-logger-5878df74fd-qn6mq    Created container random-logger
+7m51s       Normal   Started             pod/random-logger-5878df74fd-qn6mq    Started container random-logger
+7m58s       Normal   Scheduled           pod/random-logger-5878df74fd-xw466    Successfully assigned default/random-logger-5878df74fd-xw466 to node01
+7m56s       Normal   Pulling             pod/random-logger-5878df74fd-xw466    Pulling image "chentex/random-logger"
+7m54s       Normal   Pulled              pod/random-logger-5878df74fd-xw466    Successfully pulled image "chentex/random-logger"
+7m54s       Normal   Created             pod/random-logger-5878df74fd-xw466    Created container random-logger
+7m54s       Normal   Started             pod/random-logger-5878df74fd-xw466    Started container random-logger
+7m55s       Normal   Scheduled           pod/random-logger-5878df74fd-zl6w5    Successfully assigned default/random-logger-5878df74fd-zl6w5 to node01
+7m54s       Normal   Pulling             pod/random-logger-5878df74fd-zl6w5    Pulling image "chentex/random-logger"
+7m53s       Normal   Pulled              pod/random-logger-5878df74fd-zl6w5    Successfully pulled image "chentex/random-logger"
+7m53s       Normal   Created             pod/random-logger-5878df74fd-zl6w5    Created container random-logger
+7m52s       Normal   Started             pod/random-logger-5878df74fd-zl6w5    Started container random-logger
+7m58s       Normal   SuccessfulCreate    replicaset/random-logger-5878df74fd   Created pod: random-logger-5878df74fd-xw466
+7m55s       Normal   SuccessfulCreate    replicaset/random-logger-5878df74fd   Created pod: random-logger-5878df74fd-qn6mq
+7m55s       Normal   SuccessfulCreate    replicaset/random-logger-5878df74fd   Created pod: random-logger-5878df74fd-zl6w5
+7m58s       Normal   ScalingReplicaSet   deployment/random-logger              Scaled up replica set random-logger-5878df74fd to 1
+7m55s       Normal   ScalingReplicaSet   deployment/random-logger              Scaled up replica set random-logger-5878df74fd to 3
+
+
+----------------------------------------------------
+
+master $ kubectl scale deployment/random-logger --replicas=2
+deployment.extensions/random-logger scaledmaster $ kubectl get events --sort-by=.metadata.creationTimestamp
+LAST SEEN   TYPE     REASON              OBJECT                                MESSAGE
+8m31s       Normal   Scheduled           pod/random-logger-5878df74fd-xw466    Successfully assigned default/random-logger-5878df74fd-xw466 to node01
+8m31s       Normal   ScalingReplicaSet   deployment/random-logger              Scaled up replica set random-logger-5878df74fd to 1
+8m31s       Normal   SuccessfulCreate    replicaset/random-logger-5878df74fd   Created pod: random-logger-5878df74fd-xw466
+8m29s       Normal   Pulling             pod/random-logger-5878df74fd-xw466    Pulling image "chentex/random-logger"
+8m28s       Normal   SuccessfulCreate    replicaset/random-logger-5878df74fd   Created pod: random-logger-5878df74fd-zl6w5
+8m28s       Normal   SuccessfulCreate    replicaset/random-logger-5878df74fd   Created pod: random-logger-5878df74fd-qn6mq
+8m28s       Normal   Scheduled           pod/random-logger-5878df74fd-zl6w5    Successfully assigned default/random-logger-5878df74fd-zl6w5 to node01
+8m28s       Normal   ScalingReplicaSet   deployment/random-logger              Scaled up replica set random-logger-5878df74fd to 3
+8m27s       Normal   Pulled              pod/random-logger-5878df74fd-xw466    Successfully pulled image "chentex/random-logger"
+8m27s       Normal   Created             pod/random-logger-5878df74fd-xw466    Created container random-logger8m28s       Normal   Scheduled           pod/random-logger-5878df74fd-qn6mq    Successfully assigned default/random-logger-5878df74fd-qn6mq to node018m27s       Normal   Started             pod/random-logger-5878df74fd-xw466    Started container random-logger
+8m27s       Normal   Pulling             pod/random-logger-5878df74fd-zl6w5    Pulling image "chentex/random-logger"
+8m26s       Normal   Pulled              pod/random-logger-5878df74fd-zl6w5    Successfully pulled image "chentex/random-logger"
+8m26s       Normal   Created             pod/random-logger-5878df74fd-zl6w5    Created container random-logger
+8m25s       Normal   Started             pod/random-logger-5878df74fd-zl6w5    Started container random-logger
+8m26s       Normal   Pulling             pod/random-logger-5878df74fd-qn6mq    Pulling image "chentex/random-logger"
+8m24s       Normal   Started             pod/random-logger-5878df74fd-qn6mq    Started container random-logger
+8m24s       Normal   Created             pod/random-logger-5878df74fd-qn6mq    Created container random-logger
+8m25s       Normal   Pulled              pod/random-logger-5878df74fd-qn6mq    Successfully pulled image "chentex/random-logger"
+3s          Normal   Killing             pod/random-logger-5878df74fd-qn6mq    Stopping container random-logger
+3s          Normal   SuccessfulDelete    replicaset/random-logger-5878df74fd   Deleted pod: random-logger-5878df74fd-qn6mq
+3s          Normal   ScalingReplicaSet   deployment/random-logger              Scaled down replica set random-logger-5878df74fd to 2
+
+
+----------------------------------------------------
+
+master $ POD=$(kubectl get pod  -o jsonpath="{.items[0].metadata.name}")master $ kubectl exec $POD -- cat entrypoint.sh
+#!/bin/sh
+while [ 1 ]do
+   waitTime=$(shuf -i 1-5 -n 1)
+   sleep $waitTime &
+   wait $!
+   instruction=$(shuf -i 0-4 -n 1)
+   d=`date -Iseconds`
+   case "$instruction" in      "1") echo "$d ERROR something happened in this execution."
+      ;;
+      "2") echo "$d INFO takes the value and converts it to string."      ;;
+      "3") echo "$d WARN variable not in use."      ;;
+      "4") echo "$d DEBUG first loop completed."
+      ;;
+   esac
+done
+master $ kubectl exec -it $POD -- /bin/sh
+/ # ls
+bin            etc            media          root           srv            usr
+dev            home           mnt            run            sys            var
+entrypoint.sh  lib            proc           sbin           tmp
+/ # exit
+master $ kubectl exec $POD -- uptime
+ 01:08:57 up  1:08,  load average: 0.31, 0.17, 0.11
+master $ kubectl exec $POD -- ps
+PID   USER     TIME  COMMAND
+    1 root      0:00 {entrypoint.sh} /bin/sh /entrypoint.sh
+  908 root      0:00 sleep 5
+  915 root      0:00 ps
+master $ kubectl exec $POD -- stat -f /
+  File: "/"
+    ID: d2c902e1e06ea013 Namelen: 255     Type: UNKNOWN
+Block size: 4096
+Blocks: Total: 11552356   Free: 6776858    Available: 6184270
+Inodes: Total: 2943360    Free: 1679149
+master $ kubectl exec $POD --container random-logger -- lsof
+1       /bin/busybox    /dev/null
+1       /bin/busybox    pipe:[269161]
+1       /bin/busybox    pipe:[269162]
+1       /bin/busybox    /entrypoint.sh
+923     /bin/busybox    /dev/null
+923     /bin/busybox    pipe:[269161]
+923     /bin/busybox    pipe:[269162]
+master $ kubectl exec $POD --container random-logger -- iostat
+Linux 4.4.0-150-generic (random-logger-5878df74fd-xw466)        10/19/19        _x86_64_        (4 CPU)
+
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+           1.07    0.00    1.23    0.92    0.63   96.14
+
+Device:            tps   Blk_read/s   Blk_wrtn/s   Blk_read   Blk_wrtn
+loop0             0.00         0.00         0.00         10          0
+vda              29.50       330.31      4861.52    1357134   19974520
+vda1             29.32       328.29      4861.52    1348834   19974520
+vda2              0.00         0.00         0.00          4          0
+vda5              0.01         1.00         0.00       4128          0
+vdb               0.02         1.01         0.00       4168          0
+
+master $ kubectl exec $POD --container random-logger -- ls -a -l
+total 64
+drwxr-xr-x    1 root     root          4096 Oct 19 00:57 .
+drwxr-xr-x    1 root     root          4096 Oct 19 00:57 ..
+-rwxr-xr-x    1 root     root             0 Oct 19 00:57 .dockerenv
+drwxr-xr-x    2 root     root          4096 Sep 11  2018 bin
+drwxr-xr-x    5 root     root           360 Oct 19 00:57 dev
+-rwxr-xr-x    1 root     root           451 Oct 20  2018 entrypoint.sh
+drwxr-xr-x    1 root     root          4096 Oct 19 00:57 etc
+drwxr-xr-x    2 root     root          4096 Sep 11  2018 home
+drwxr-xr-x    5 root     root          4096 Sep 11  2018 lib
+drwxr-xr-x    5 root     root          4096 Sep 11  2018 media
+drwxr-xr-x    2 root     root          4096 Sep 11  2018 mnt
+dr-xr-xr-x  173 root     root             0 Oct 19 00:57 proc
+drwx------    1 root     root          4096 Oct 19 01:07 root
+drwxr-xr-x    1 root     root          4096 Oct 19 00:57 run
+drwxr-xr-x    2 root     root          4096 Sep 11  2018 sbin
+drwxr-xr-x    2 root     root          4096 Sep 11  2018 srv
+dr-xr-xr-x   13 root     root             0 Oct 19 00:57 sys
+drwxrwxrwt    2 root     root          4096 Sep 11  2018 tmp
+drwxr-xr-x    7 root     root          4096 Sep 11  2018 usr
+drwxr-xr-x   11 root     root          4096 Sep 11  2018 var
+
+
+----------------------------------------------------
+kubectl get nodes
+
+For this small Kubernetes cluster on Katacoda the two names are named master and node01.
+
+export NODE=master
+
+Open a proxy to the Kubernetes API port.
+
+kubectl proxy &
+
+Access the worker node statistics with this command to the Metrics API.
+
+curl localhost:8001/api/v1/nodes/$NODE/proxy/stats/
+
+curl localhost:8001/api/v1/nodes/$(kubectl get nodes -o=jsonpath="{.items[0].metadata.name}")/proxy/metrics
+
+The Kubernetes API aggregates cluster-wide metrics at /metrics.
+
+curl localhost:8001/metrics
+
+
+----------------------------------------------------
+master $ helm install stable/metrics-server \
+> --name metrics-server \
+> --namespace kube-system \
+> --set args[0]="--kubelet-preferred-address-types=InternalIP" \
+> --set args[1]="--kubelet-insecure-tls"
+NAME:   metrics-server
+LAST DEPLOYED: Sat Oct 19 01:17:57 2019
+NAMESPACE: kube-system
+STATUS: DEPLOYED
+
+RESOURCES:
+==> v1/ClusterRole
+NAME                                     AGE
+system:metrics-server                    1s
+system:metrics-server-aggregated-reader  1s
+
+==> v1/ClusterRoleBinding
+NAME                                  AGE
+metrics-server:system:auth-delegator  1s
+system:metrics-server                 1s
+
+==> v1/Deployment
+NAME            READY  UP-TO-DATE  AVAILABLE  AGE
+metrics-server  0/1    1           0          1s
+
+==> v1/Pod(related)
+NAME                            READY  STATUS             RESTARTS  AGE
+metrics-server-dc79fc78d-6vvv6  0/1    ContainerCreating  0         1s
+
+==> v1/Service
+NAME            TYPE       CLUSTER-IP     EXTERNAL-IP  PORT(S)  AGE
+metrics-server  ClusterIP  10.97.167.160  <none>       443/TCP  1s
+
+==> v1/ServiceAccount
+NAME            SECRETS  AGE
+metrics-server  1        1s
+
+==> v1beta1/APIService
+NAME                    AGE
+v1beta1.metrics.k8s.io  1s
+
+==> v1beta1/RoleBinding
+NAME                        AGE
+metrics-server-auth-reader  1s
+
+
+NOTES:
+The metric server has been deployed.
+
+In a few minutes you should be able to list metrics using the following
+command:
+
+  kubectl get --raw "/apis/metrics.k8s.io/v1beta1/nodes"
+  
+  
+----------------------------------------------------
+  
+  master $ kubectl get --raw "/apis/metrics.k8s.io/v1beta1/nodes"
+{"kind":"NodeMetricsList","apiVersion":"metrics.k8s.io/v1beta1","metadata":{"selfLink":"/apis/metrics.k8s.io/v1beta1/nodes"},"items":[]}
+master $ kubectl top node
+error: metrics not available yet
+master $ kubectl top node
+NAME     CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%
+master   119m         5%     1058Mi          55%
+node01   73m          1%     913Mi           23%
+
+----------------------------------------------------
+
+
+
