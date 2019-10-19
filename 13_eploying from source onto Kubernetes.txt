@@ -1,0 +1,276 @@
+Reference: https://www.katacoda.com/courses/kubernetes/deploy-service-from-source
+
+----------------------------------------------------
+
+master $ cat Dockerfile
+# Run server
+FROM alpine:3.5
+RUN apk add --no-cache python py2-pip py2-gevent
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . /app
+WORKDIR /app
+EXPOSE 8080
+ENTRYPOINT ["python"]
+CMD ["app.py"]
+
+----------------------------------------------------
+
+master $ export PATH=$PATH:~/.bin/ \
+> && git clone https://github.com/datawire/hello-webapp.git \
+> && export FORGE_SETUP_IMAGE=registry.hub.docker.com/datawire/forge-setup-test-katacoda:1 \
+> && cat /proc/sys/kernel/random/uuid > hello-webapp/uuid.txt \
+> && export LANG=C.UTF-8 && export LC_ALL=C.UTF-8
+Cloning into 'hello-webapp'...
+remote: Enumerating objects: 41, done.
+remote: Total 41 (delta 0), reused 0 (delta 0), pack-reused 41
+Unpacking objects: 100% (41/41), done.
+Checking connectivity... done.
+master $ cd hello-webapp
+master $ cat Dockerfile
+# Run server
+FROM alpine:3.5
+RUN apk add --no-cache python py2-pip py2-gevent
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . /app
+WORKDIR /app
+EXPOSE 8080
+ENTRYPOINT ["python"]
+CMD ["app.py"]
+master $ docker build -t hello-webapp:v1 .
+Sending build context to Docker daemon  135.7kB
+Step 1/9 : FROM alpine:3.5
+3.5: Pulling from library/alpine
+8cae0e1ac61c: Already exists
+Digest: sha256:66952b313e51c3bd1987d7c4ddf5dba9bc0fb6e524eed2448fa660246b3e76ec
+Status: Downloaded newer image for alpine:3.5
+ ---> f80194ae2e0c
+Step 2/9 : RUN apk add --no-cache python py2-pip py2-gevent
+ ---> Running in 6fa3a5f848bd
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.5/main/x86_64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.5/community/x86_64/APKINDEX.tar.gz
+(1/14) Installing libbz2 (1.0.6-r5)
+(2/14) Installing expat (2.2.0-r1)
+(3/14) Installing libffi (3.2.1-r2)
+(4/14) Installing gdbm (1.12-r0)
+(5/14) Installing ncurses-terminfo-base (6.0_p20171125-r1)
+(6/14) Installing ncurses-terminfo (6.0_p20171125-r1)
+(7/14) Installing ncurses-libs (6.0_p20171125-r1)
+(8/14) Installing readline (6.3.008-r4)
+(9/14) Installing sqlite-libs (3.15.2-r2)
+(10/14) Installing python2 (2.7.15-r0)
+(11/14) Installing py2-greenlet (0.4.10-r3)
+(12/14) Installing py2-gevent (1.1.2-r0)
+(13/14) Installing py-setuptools (29.0.1-r0)
+(14/14) Installing py2-pip (9.0.0-r1)
+Executing busybox-1.25.1-r2.trigger
+OK: 63 MiB in 25 packages
+Removing intermediate container 6fa3a5f848bd
+ ---> 02d6142b9ea4
+Step 3/9 : COPY requirements.txt .
+ ---> 7f58bd51952e
+Step 4/9 : RUN pip install -r requirements.txt
+ ---> Running in 3d820c2ebd8b
+Collecting flask (from -r requirements.txt (line 1))
+  Downloading https://files.pythonhosted.org/packages/9b/93/628509b8d5dc749656a9641f4caf13540e2cdec85276964ff8f43bbb1d3b/Flask-1.1.1-py2.py3-none-any.whl (94kB)
+Collecting requests (from -r requirements.txt (line 2))
+  Downloading https://files.pythonhosted.org/packages/51/bd/23c926cd341ea6b7dd0b2a00aba99ae0f828be89d72b2190f27c11d4b7fb/requests-2.22.0-py2.py3-none-any.whl (57kB)
+Collecting Jinja2>=2.10.1 (from flask->-r requirements.txt (line 1))
+  Downloading https://files.pythonhosted.org/packages/65/e0/eb35e762802015cab1ccee04e8a277b03f1d8e53da3ec3106882ec42558b/Jinja2-2.10.3-py2.py3-none-any.whl (125kB)
+Collecting click>=5.1 (from flask->-r requirements.txt (line 1))
+  Downloading https://files.pythonhosted.org/packages/fa/37/45185cb5abbc30d7257104c434fe0b07e5a195a6847506c074527aa599ec/Click-7.0-py2.py3-none-any.whl (81kB)
+Collecting Werkzeug>=0.15 (from flask->-r requirements.txt (line 1))
+  Downloading https://files.pythonhosted.org/packages/ce/42/3aeda98f96e85fd26180534d36570e4d18108d62ae36f87694b476b83d6f/Werkzeug-0.16.0-py2.py3-none-any.whl (327kB)
+Collecting itsdangerous>=0.24 (from flask->-r requirements.txt (line 1))
+  Downloading https://files.pythonhosted.org/packages/76/ae/44b03b253d6fade317f32c24d100b3b35c2239807046a4c953c7b89fa49e/itsdangerous-1.1.0-py2.py3-none-any.whl
+Collecting chardet<3.1.0,>=3.0.2 (from requests->-r requirements.txt (line 2))
+  Downloading https://files.pythonhosted.org/packages/bc/a9/01ffebfb562e4274b6487b4bb1ddec7ca55ec7510b22e4c51f14098443b8/chardet-3.0.4-py2.py3-none-any.whl (133kB)
+Collecting idna<2.9,>=2.5 (from requests->-r requirements.txt (line 2))
+  Downloading https://files.pythonhosted.org/packages/14/2c/cd551d81dbe15200be1cf41cd03869a46fe7226e7450af7a6545bfc474c9/idna-2.8-py2.py3-none-any.whl (58kB)
+Collecting urllib3!=1.25.0,!=1.25.1,<1.26,>=1.21.1 (from requests->-r requirements.txt (line 2))
+  Downloading https://files.pythonhosted.org/packages/e0/da/55f51ea951e1b7c63a579c09dd7db825bb730ec1fe9c0180fc77bfb31448/urllib3-1.25.6-py2.py3-none-any.whl (125kB)
+Collecting certifi>=2017.4.17 (from requests->-r requirements.txt (line 2))
+  Downloading https://files.pythonhosted.org/packages/18/b0/8146a4f8dd402f60744fa380bc73ca47303cccf8b9190fd16a827281eac2/certifi-2019.9.11-py2.py3-none-any.whl (154kB)
+Collecting MarkupSafe>=0.23 (from Jinja2>=2.10.1->flask->-r requirements.txt (line 1))
+  Downloading https://files.pythonhosted.org/packages/b9/2e/64db92e53b86efccfaea71321f597fa2e1b2bd3853d8ce658568f7a13094/MarkupSafe-1.1.1.tar.gz
+Installing collected packages: MarkupSafe, Jinja2, click, Werkzeug, itsdangerous, flask, chardet, idna, urllib3, certifi, requests
+  Running setup.py install for MarkupSafe: started
+    Running setup.py install for MarkupSafe: finished with status 'done'
+Successfully installed Jinja2-2.10.3 MarkupSafe-1.1.1 Werkzeug-0.16.0 certifi-2019.9.11 chardet-3.0.4 click-7.0 flask-1.1.1 idna-2.8 itsdangerous-1.1.0 requests-2.22.0 urllib3-1.25.6
+You are using pip version 9.0.0, however version 19.3.1 is available.
+You should consider upgrading via the 'pip install --upgrade pip' command.
+Removing intermediate container 3d820c2ebd8b
+ ---> 93750717dd19
+Step 5/9 : COPY . /app
+ ---> 5a7776c45fa4
+Step 6/9 : WORKDIR /app
+ ---> Running in b96c38b7402b
+Removing intermediate container b96c38b7402b
+ ---> 67f14c565768
+Step 7/9 : EXPOSE 8080
+ ---> Running in 36c4b15ba618
+Removing intermediate container 36c4b15ba618
+ ---> 524db93d9359
+Step 8/9 : ENTRYPOINT ["python"]
+ ---> Running in 23aa47bffdb8
+Removing intermediate container 23aa47bffdb8
+ ---> fce41edebba3
+Step 9/9 : CMD ["app.py"]
+ ---> Running in f7c00b0ffdd5
+Removing intermediate container f7c00b0ffdd5
+ ---> 0dd15a0c36ff
+Successfully built 0dd15a0c36ff
+Successfully tagged hello-webapp:v1
+
+
+----------------------------------------------------
+
+master $ docker run -d -p 80:8080 hello-webapp:v1
+1bc451a696377fb7438f61b8b1926fb41f365c6ac72132a571b723f32f823f02
+master $ curl host01
+Hello World! (up 0:00:07)
+
+
+----------------------------------------------------
+
+master $ cat deployment.yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-webapp
+spec:
+  selector:
+    app: hello-webapp
+
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: NodePort
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata: {name: hello-webapp}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hello-webapp
+      track: stable
+  strategy:
+    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}
+    type: RollingUpdate
+  revisionHistoryLimit: 1
+  template:
+    metadata:
+      labels:
+        app: hello-webapp
+        track: stable
+      name: hello-webapp
+    spec:
+      containers:
+      - image: IMAGE_URL
+        imagePullPolicy: IfNotPresent
+        name: hello-webapp
+        resources:
+          limits:
+            memory: 0.25G
+            cpu: 0.25
+        terminationMessagePath: /dev/termination-log
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      
+
+----------------------------------------------------
+
+master $ export REGISTRY=2886795293-5000-cykoria02.environments.katacoda.com
+master $ docker tag hello-webapp:v1 $REGISTRY/hello-webapp:v1
+master $ docker push $REGISTRY/hello-webapp:v1
+The push refers to repository [2886795293-5000-cykoria02.environments.katacoda.com/hello-webapp]
+5a9b11e892b0: Pushed
+546aa74e97e9: Pushed
+8d3f43fecc83: Pushed
+960fa8854ec1: Pushed
+f566c57e6f2d: Pushed
+v1: digest: sha256:37a63969ce37205f1e531f35d137d80c43fd03ca22e7050c651a72a27a7bd569 size: 1367
+master $ sed -i -e 's@IMAGE_URL@'"$REGISTRY/hello-webapp:v1"'@' deployment.yaml
+master $ cat deployment.yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-webapp
+spec:
+  selector:
+    app: hello-webapp
+
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: NodePort
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata: {name: hello-webapp}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hello-webapp
+      track: stable
+  strategy:
+    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}
+    type: RollingUpdate
+  revisionHistoryLimit: 1
+  template:
+    metadata:
+      labels:
+        app: hello-webapp
+        track: stable
+      name: hello-webapp
+    spec:
+      containers:
+      - image: 2886795293-5000-cykoria02.environments.katacoda.com/hello-webapp:v1
+        imagePullPolicy: IfNotPresent
+        name: hello-webapp
+        resources:
+          limits:
+            memory: 0.25G
+            cpu: 0.25
+        terminationMessagePath: /dev/termination-log
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+master $ scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@host01:/root/.kube/config ~/.kube/
+Warning: Permanently added 'host01' (ECDSA) to the list of known hosts.
+config                                                                                 100% 5447     5.3KB/s   00:00
+master $ kubectl apply -f deployment.yaml
+service/hello-webapp created
+deployment.extensions/hello-webapp created
+master $ kubectl get services
+NAME           TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+hello-webapp   NodePort    10.106.52.216   <none>        80:31386/TCP   1s
+kubernetes     ClusterIP   10.96.0.1       <none>        443/TCP        4m46s
+master $ kubectl get pods
+NAME                           READY   STATUS    RESTARTS   AGE
+hello-webapp-c4dd8557c-8z42d   1/1     Running   0          5s
+master $ kubectl get svc
+NAME           TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+hello-webapp   NodePort    10.106.52.216   <none>        80:31386/TCP   7s
+kubernetes     ClusterIP   10.96.0.1       <none>        443/TCP        4m52s
+master $ export PORT=$(kubectl get svc hello-webapp -o go-template='{{range.spec.ports}}{{if .nodePort}}{{.nodePort}}{{"\n"}}{{end}}{{end}}')
+master $ curl host01:$PORT
+Hello World! (up 0:00:10)
+
+
+----------------------------------------------------
+
+
