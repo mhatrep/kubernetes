@@ -1,0 +1,219 @@
+# Reference: https://www.katacoda.com/openshift/courses/operatorframework/etcd-operator
+
+The etcd operator manages etcd clusters deployed to Kubernetes and automates tasks related to operating an etcd cluster.
+
+Create and Destroy
+Resize
+Failover
+Rolling upgrade
+Backup and Restore
+
+
+----------------------------------------------------
+
+
+$ oc new-project myproject
+Now using project "myproject" on server "https://master:8443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app centos/ruby-25-centos7~https://github.com/sclorg/ruby-ex.git
+
+to build a new example application in Ruby.
+$ cat > etcd-operator-crd.yaml<<EOF
+> apiVersion: apiextensions.k8s.io/v1beta1
+> kind: CustomResourceDefinition
+> metadata:
+>   name: etcdclusters.etcd.database.coreos.com
+> spec:
+>   group: etcd.database.coreos.com
+>   names:
+>     kind: EtcdCluster
+>     listKind: EtcdClusterList
+>     plural: etcdclusters
+>     shortNames:
+>     - etcdclus
+>     - etcd
+>     singular: etcdcluster
+>   scope: Namespaced
+>   version: v1beta2
+>   versions:
+>   - name: v1beta2
+>     served: true
+>     storage: true
+> EOF
+$ oc create -f etcd-operator-crd.yaml
+customresourcedefinition.apiextensions.k8s.io/etcdclusters.etcd.database.coreos.com created
+$ oc get crd
+NAME                                    CREATED AT
+alertmanagers.monitoring.coreos.com     2019-10-18T21:23:37Z
+bundlebindings.automationbroker.io      2019-10-18T21:30:39Z
+bundleinstances.automationbroker.io     2019-10-18T21:30:37Z
+bundles.automationbroker.io             2019-10-18T21:30:40Z
+etcdclusters.etcd.database.coreos.com   2019-10-19T02:30:14Z
+prometheuses.monitoring.coreos.com      2019-10-18T21:23:37Z
+prometheusrules.monitoring.coreos.com   2019-10-18T21:23:37Z
+servicemonitors.monitoring.coreos.com   2019-10-18T21:23:37Z
+
+
+----------------------------------------------------
+$ cat > etcd-operator-sa.yaml<<EOF
+> apiVersion: v1
+> kind: ServiceAccount
+> metadata:
+>   name: etcd-operator-sa
+> EOF
+$ oc create -f etcd-operator-sa.yaml
+serviceaccount/etcd-operator-sa created
+$ oc get sa
+NAME               SECRETS   AGE
+builder            2         59s
+default            2         59s
+deployer           2         59s
+etcd-operator-sa   2         3s
+$ cat > etcd-operator-role.yaml<<EOF
+> apiVersion: rbac.authorization.k8s.io/v1
+> kind: Role
+> metadata:
+>   name: etcd-operator-role
+> rules:
+> - apiGroups:
+>   - etcd.database.coreos.com
+>   resources:
+>   - etcdclusters
+>   - etcdbackups
+>   - etcdrestores
+>   verbs:
+>   - '*'
+> - apiGroups:
+>   - ""
+>   resources:
+>   - pods
+>   - services
+>   - endpoints
+>   - persistentvolumeclaims
+>   - events
+>   verbs:
+>   - '*'
+> - apiGroups:
+>   - apps
+>   resources:
+>   - deployments
+>   verbs:
+>   - '*'
+> - apiGroups:
+>   - ""
+>   resources:
+>   - secrets
+>   verbs:
+>   - get
+> EOF
+$ oc create -f etcd-operator-role.yaml
+role.rbac.authorization.k8s.io/etcd-operator-role created
+$ oc get roles
+NAME
+etcd-operator-role
+$ cat > etcd-operator-rolebinding.yaml<<EOF
+> apiVersion: rbac.authorization.k8s.io/v1
+> kind: RoleBinding
+> metadata:
+>   name: etcd-operator-rolebinding
+> roleRef:
+>   apiGroup: rbac.authorization.k8s.io
+>   kind: Role
+>   name: etcd-operator-role
+> subjects:
+> - kind: ServiceAccount
+>   name: etcd-operator-sa
+>   namespace: myproject
+> EOF
+$ oc create -f etcd-operator-rolebinding.yaml
+rolebinding.rbac.authorization.k8s.io/etcd-operator-rolebinding created
+$ oc get rolebindings
+NAME                        ROLE                           USERS          GROUPS                             SERVICE ACCOUNTS   SUBJECTS
+admin                       /admin                         system:admin
+etcd-operator-rolebinding   myproject/etcd-operator-role                                                     etcd-operator-sa
+system:deployers            /system:deployer                                                                 deployer
+system:image-builders       /system:image-builder                                                            builder
+system:image-pullers        /system:image-puller                          system:serviceaccounts:myproject
+
+----------------------------------------------------
+
+$ cat > etcd-operator-deployment.yaml<<EOF
+> apiVersion: extensions/v1beta1> kind: Deployment
+> metadata:>   labels:
+>     name: etcdoperator>   name: etcd-operator
+> spec:>   replicas: 1
+>   selector:>     matchLabels:
+>       name: etcd-operator
+>   template:
+>     metadata:
+>       labels:
+>         name: etcd-operator
+>     spec:
+>       containers:
+>       - command:
+>         - etcd-operator
+>         - --create-crd=false
+>         env:
+>         - name: MY_POD_NAMESPACE
+>           valueFrom:
+>             fieldRef:
+>               apiVersion: v1
+>               fieldPath: metadata.namespace
+>         - name: MY_POD_NAME
+>           valueFrom:
+>             fieldRef:
+>               apiVersion: v1
+>               fieldPath: metadata.name
+>         image: quay.io/coreos/etcd-operator@sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2
+>         imagePullPolicy: IfNotPresent
+>         name: etcd-operator
+>       serviceAccountName: etcd-operator-sa
+> EOF
+$ oc create -f etcd-operator-deployment.yaml
+deployment.extensions/etcd-operator created
+$ oc get deploy
+NAME            DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+etcd-operator   1         1         1            0           2s
+$ oc get pods
+NAME                             READY     STATUS              RESTARTS   AGE
+etcd-operator-594fbd565f-nm64p   0/1       ContainerCreating   0          6s
+$ export ETCD_OPERATOR_POD=$(oc get pods -l name=etcd-operator -o jsonpath='{.items[0].metadata.name}')
+$ oc logs $ETCD_OPERATOR_POD -f
+Error from server (BadRequest): container "etcd-operator" in pod "etcd-operator-594fbd565f-nm64p" is waiting to start: ContainerCreating
+$ oc get endpoints etcd-operator -o yaml
+Error from server (NotFound): endpoints "etcd-operator" not found
+
+
+----------------------------------------------------
+
+
+$ cat > etcd-operator-cr.yaml<<EOF
+> apiVersion: etcd.database.coreos.com/v1beta2
+> kind: EtcdCluster
+> metadata:
+>   name: example-etcd-cluster
+> spec:
+>   size: 3
+>   version: 3.1.10> EOF
+$ oc create -f etcd-operator-cr.yaml
+etcdcluster.etcd.database.coreos.com/example-etcd-cluster created
+$ oc get etcdclusters
+NAME                   AGE
+example-etcd-cluster   3s
+$ oc get pods -l etcd_cluster=example-etcd-cluster -w
+NAME                              READY     STATUS     RESTARTS   AGE
+example-etcd-cluster-xcfd96h5f7   0/1       Init:0/1   0          6s
+
+example-etcd-cluster-xcfd96h5f7   0/1       Init:0/1   0         11s
+^C$ oc get services -l etcd_cluster=example-etcd-cluster
+NAME                          TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)             AGE
+example-etcd-cluster          ClusterIP   None            <none>        2379/TCP,2380/TCP   14s
+example-etcd-cluster-client   ClusterIP   172.30.176.48   <none>        2379/TCP            15s
+
+
+----------------------------------------------------
+
+
+
