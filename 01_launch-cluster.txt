@@ -60,6 +60,7 @@ $ kubectl apply -f /opt/kubernetes-dashboard.yaml
 service/kubernetes-dashboard-katacoda created
 ----------------------------------------------------
 
+
 $ kubectl get pods -n kube-system  -w
 NAME                                    READY   STATUS              RESTARTS   AGE
 coredns-5c98db65d4-7n6ss                1/1     Running             1          4m3s
