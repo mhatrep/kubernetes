@@ -1,0 +1,5 @@
+kubectl: Kubernetes’ CLI
+minikube: A tool for running Kubernetes locally
+helm: A Kubernetes package manager
+kops: A tool for managing production Kubernetes
+eksctl: The official CLI for Amazon EKS
