@@ -2,7 +2,6 @@
 
 ----------------------------------------------------
 
-
 $ minikube version
 minikube version: v1.3.0
 commit: 43969594266d77b555a207b0f3e9b3fa1dc92b1f
