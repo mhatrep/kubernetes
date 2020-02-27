@@ -161,4 +161,4 @@ master $ kubectl exec $pod -- /usr/bin/curl -s localhost/unhealthy
 master $ kubectl get pods --selector="name=frontend"
 NAME             READY   STATUS    RESTARTS   AGE
 frontend-bw489   1/1     Running   0          62s
--------------------------------------
+--------------------------------------
