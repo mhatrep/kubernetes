@@ -1,5 +1,7 @@
 Reference: https://www.katacoda.com/courses/kubernetes/kubectl-run-containers
 
+----------------------------------------------------
+
 $ minikube start --wait=false
 * minikube v1.3.0 on Ubuntu 18.04
 * Running on localhost (CPUs=2, Memory=2461MB, Disk=47990MB) ...
