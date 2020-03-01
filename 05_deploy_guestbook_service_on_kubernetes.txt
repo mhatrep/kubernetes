@@ -4,6 +4,8 @@ master $ kubectl cluster-info
 Kubernetes master is running at https://172.17.0.10:6443
 KubeDNS is running at https://172.17.0.10:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
 
+----------------------------------------------------
+
 To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 master $ kubectl get nodes
 NAME     STATUS   ROLES    AGE   VERSION
